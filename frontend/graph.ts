@@ -141,7 +141,7 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
             target,
             type: edgeType(style.curve),
             animated: style.animated,
-            markerEnd: { type: MarkerType.ArrowClosed, color: style.color },
+            markerStart: { type: MarkerType.ArrowClosed, color: style.color },
             class: `project-edge ${kind}-edge ${style.line}-edge`,
             style: {
                 stroke: style.color,
