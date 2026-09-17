@@ -96,9 +96,7 @@ button:disabled {
     justify-content: space-between;
     gap: 16px;
     min-height: 72px;
-    padding: 14px 20px;
-    border-bottom: 1px solid #334155;
-    background: #111b2d;
+   padding: 16px;
 }
 
 h1,
@@ -215,6 +213,18 @@ h2 {
     border-radius: 5px;
     font-size: 11px;
     font-weight: 650;
+}
+
+.legend-toggle {
+    min-height: 0;
+    cursor: pointer;
+}
+
+.legend-toggle.hidden,
+.legend-toggle.hidden:hover {
+    border-color: transparent;
+    background: transparent;
+    opacity: 0.55;
 }
 
 .legend-connection {

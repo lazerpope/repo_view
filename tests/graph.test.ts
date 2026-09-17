@@ -131,6 +131,23 @@ test('removes a hidden node and all of its connections', () => {
     )
 })
 
+test('hides a selected library kind and its connections', () => {
+    const baseGraph = buildGraph(structure, options)
+    const graph = applyGraphView(baseGraph, {
+        hiddenNodeKeys: [],
+        hiddenNodeKinds: ['lib'],
+        focusedNodeKey: null,
+        focusDepth: null,
+    })
+
+    assert.equal(
+        graph.nodes.some((node) => node.data.kind === 'lib'),
+        false,
+    )
+    const nodeIds = new Set(graph.nodes.map((node) => node.id))
+    assert.ok(graph.edges.every((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)))
+})
+
 test('collects every descendant when a folder is hidden', () => {
     const nestedStructure: Structure = [
         {

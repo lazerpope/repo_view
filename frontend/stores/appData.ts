@@ -13,10 +13,13 @@ export interface FolderChoice {
     folder: Folder
 }
 
+export type LibraryKind = 'lib' | 'lib-external' | 'lib-builtin'
+
 interface AppDataPreferences {
     selectedFolderPath: string | null
     hiddenExtensions: string[]
     hiddenNodeKeys: string[]
+    hiddenLibraryKinds: LibraryKind[]
     focusedNodeKey: string | null
     focusDepth: number | null
 }
@@ -66,6 +69,7 @@ export const useAppData = defineStore('appData', () => {
     const selectedFolderPath = ref<string | null>(saved?.selectedFolderPath ?? null)
     const hiddenExtensions = ref<string[]>(saved?.hiddenExtensions ?? [])
     const hiddenNodeKeys = ref<string[]>(saved?.hiddenNodeKeys ?? [])
+    const hiddenLibraryKinds = ref<LibraryKind[]>(saved?.hiddenLibraryKinds ?? [])
     const focusedNodeKey = ref<string | null>(saved?.focusedNodeKey ?? null)
     const focusDepth = ref<number | null>(saved?.focusDepth ?? null)
 
@@ -122,8 +126,16 @@ export const useAppData = defineStore('appData', () => {
         if (focusedNodeKey.value && keys.includes(focusedNodeKey.value)) clearFocus()
     }
 
+    function toggleLibraryKind(kind: LibraryKind) {
+        const hidden = new Set(hiddenLibraryKinds.value)
+        if (hidden.has(kind)) hidden.delete(kind)
+        else hidden.add(kind)
+        hiddenLibraryKinds.value = [...hidden]
+    }
+
     function clearHiddenNodes() {
         hiddenNodeKeys.value = []
+        hiddenLibraryKinds.value = []
     }
 
     function focusNode(key: string) {
@@ -141,7 +153,14 @@ export const useAppData = defineStore('appData', () => {
     }
     let storeTimeout: ReturnType<typeof setTimeout>
     watch(
-        [selectedFolderPath, hiddenExtensions, hiddenNodeKeys, focusedNodeKey, focusDepth],
+        [
+            selectedFolderPath,
+            hiddenExtensions,
+            hiddenNodeKeys,
+            hiddenLibraryKinds,
+            focusedNodeKey,
+            focusDepth,
+        ],
         () => {
             clearTimeout(storeTimeout)
 
@@ -150,6 +169,7 @@ export const useAppData = defineStore('appData', () => {
                     selectedFolderPath: selectedFolderPath.value,
                     hiddenExtensions: hiddenExtensions.value,
                     hiddenNodeKeys: hiddenNodeKeys.value,
+                    hiddenLibraryKinds: hiddenLibraryKinds.value,
                     focusedNodeKey: focusedNodeKey.value,
                     focusDepth: focusDepth.value,
                 })
@@ -165,6 +185,7 @@ export const useAppData = defineStore('appData', () => {
         selectedFolderPath,
         hiddenExtensions,
         hiddenNodeKeys,
+        hiddenLibraryKinds,
         focusedNodeKey,
         focusDepth,
         folders,
@@ -178,6 +199,7 @@ export const useAppData = defineStore('appData', () => {
         selectFolder,
         setExtensionEnabled,
         hideNode,
+        toggleLibraryKind,
         clearHiddenNodes,
         focusNode,
         clearFocus,

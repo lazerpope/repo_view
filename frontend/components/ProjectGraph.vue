@@ -17,7 +17,7 @@ import { Background } from '@vue-flow/background'
 import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { applyGraphView, buildGraph } from '../graph.ts'
-import { useAppData } from '../stores/appData.ts'
+import { useAppData, type LibraryKind } from '../stores/appData.ts'
 import {
     connectionKinds,
     nodeKinds,
@@ -44,6 +44,7 @@ const baseGraph = computed(() =>
 const graph = computed(() =>
     applyGraphView(baseGraph.value, {
         hiddenNodeKeys: appData.hiddenNodeKeys,
+        hiddenNodeKinds: appData.hiddenLibraryKinds,
         focusedNodeKey: appData.focusedNodeKey,
         focusDepth: appData.focusDepth,
     }),
@@ -63,6 +64,10 @@ const nodeLabels: Record<NodeKind, string> = {
 const connectionLabels: Record<ConnectionKind, string> = {
     contains: 'Contains',
     imports: 'Imports',
+}
+
+function isLibraryKind(kind: NodeKind): kind is LibraryKind {
+    return kind === 'lib' || kind === 'lib-external' || kind === 'lib-builtin'
 }
 
 function legendLineStyle(kind: ConnectionKind) {
@@ -137,8 +142,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
     <main class="graph-page">
         <header class="toolbar">
             <div>
-                <h1>Project graph</h1>
-                <p>{{ appData.selectedFolder?.displayPath ?? 'Entire project' }}</p>
+                <h1>Project graph <IconAdjustments :size="20"  /></h1>
+                
             </div>
             <div class="toolbar-actions">
                 <button
@@ -217,17 +222,32 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
             </div>
 
             <div class="legend" aria-label="Graph legend">
-                <span
-                    v-for="kind in nodeKinds"
-                    :key="kind"
-                    class="legend-node"
-                    :style="{
-                        color: appUI.nodeStyles[kind].color,
-                        backgroundColor: appUI.nodeStyles[kind].backgroundColor,
-                    }"
-                >
-                    {{ nodeLabels[kind] }}
-                </span>
+                <template v-for="kind in nodeKinds" :key="kind">
+                    <button
+                        v-if="isLibraryKind(kind)"
+                        class="legend-node legend-toggle"
+                        :class="{ hidden: appData.hiddenLibraryKinds.includes(kind) }"
+                        :style="{
+                            color: appUI.nodeStyles[kind].color,
+                            backgroundColor: appUI.nodeStyles[kind].backgroundColor,
+                        }"
+                        :title="`Toggle ${nodeLabels[kind]}`"
+                        :aria-pressed="!appData.hiddenLibraryKinds.includes(kind)"
+                        @click="appData.toggleLibraryKind(kind)"
+                    >
+                        {{ nodeLabels[kind] }}
+                    </button>
+                    <span
+                        v-else
+                        class="legend-node"
+                        :style="{
+                            color: appUI.nodeStyles[kind].color,
+                            backgroundColor: appUI.nodeStyles[kind].backgroundColor,
+                        }"
+                    >
+                        {{ nodeLabels[kind] }}
+                    </span>
+                </template>
                 <span v-for="kind in connectionKinds" :key="kind" class="legend-connection">
                     <svg width="32" height="16" viewBox="0 0 32 16" aria-hidden="true">
                         <path
@@ -272,7 +292,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                     <output>{{ appData.focusDepth ?? '∞' }}</output>
                 </div>
                 <button
-                    v-if="appData.hiddenNodeKeys.length"
+                    v-if="appData.hiddenNodeKeys.length || appData.hiddenLibraryKinds.length"
                     class="icon-button"
                     title="Unhide all"
                     @click="appData.clearHiddenNodes"

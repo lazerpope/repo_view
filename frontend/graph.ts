@@ -38,6 +38,7 @@ export interface ProjectGraph {
 
 export interface GraphViewOptions {
     hiddenNodeKeys: readonly string[]
+    hiddenNodeKinds?: readonly NodeKind[]
     focusedNodeKey: string | null
     focusDepth: number | null
 }
@@ -300,7 +301,11 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
 
 export function applyGraphView(graph: ProjectGraph, options: GraphViewOptions): ProjectGraph {
     const hiddenKeys = new Set(options.hiddenNodeKeys)
-    let nodes = graph.nodes.filter((node) => !hiddenKeys.has(String(node.data.key)))
+    const hiddenKinds = new Set(options.hiddenNodeKinds ?? [])
+    let nodes = graph.nodes.filter(
+        (node) =>
+            !hiddenKeys.has(String(node.data.key)) && !hiddenKinds.has(node.data.kind as NodeKind),
+    )
     const nodeIds = new Set(nodes.map((node) => node.id))
     let edges = graph.edges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
 
