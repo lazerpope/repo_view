@@ -1,15 +1,19 @@
 import { createServer } from 'node:http'
+import type { Structure } from '../shared/types.ts'
 
 const port = Number(process.env.PORT || 3000)
-const data = [
+const data : Structure = [
   {
     type: 'folder', label: 'folder1', contains: [
       {
         type: 'folder', label: 'folder2', contains: [
-          { type: 'file', label: 'file2', imports: ['import3', 'import2', 'file1'] },
+          { type: 'file', label: 'file2', imports: [
+            {label:'import3',type:'lib-builtin'}, 
+            {label:'import2',type:'lib'}, {label:'file1',type:'file'}] 
+          },
         ],
       },
-      { type: 'file', label: 'file1', imports: ['import1', 'import2'] },
+      { type: 'file', label: 'file1', imports: [{label:'import1',type:'lib-external'},{label:'import1',type:'lib'}, {label:'import2',type:'lib'}] },
     ],
   },
 ]
