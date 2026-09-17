@@ -16,5 +16,4 @@ export interface File {
 export interface Import {
     type: ImportType
     label: string
-
 }

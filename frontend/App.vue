@@ -3,5 +3,5 @@ import ProjectGraph from './components/ProjectGraph.vue'
 </script>
 
 <template>
-  <ProjectGraph />
+    <ProjectGraph />
 </template>

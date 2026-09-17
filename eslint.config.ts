@@ -1,44 +1,65 @@
-import js from "@eslint/js"
-import globals from "globals"
-import tseslint from "typescript-eslint"
-import pluginVue from "eslint-plugin-vue"
-import css from "@eslint/css"
-import { defineConfig } from "eslint/config"
-import stylistic from "@stylistic/eslint-plugin"
+import css from '@eslint/css'
+import js from '@eslint/js'
+import stylistic from '@stylistic/eslint-plugin'
+import { defineConfig } from 'eslint/config'
+import prettier from 'eslint-config-prettier'
+import pluginVue from 'eslint-plugin-vue'
+import globals from 'globals'
+import tseslint from 'typescript-eslint'
+
+const scriptFiles = ['**/*.{js,mjs,cjs,ts,mts,cts,vue}']
+const typescriptFiles = ['**/*.{ts,mts,cts,vue}']
+const vueFiles = ['**/*.vue']
 
 export default defineConfig([
-  {
-    files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue}"],
-    plugins: { js, "@stylistic": stylistic, }, extends: ["js/recommended"],
-    languageOptions: { globals: { ...globals.browser, ...globals.node } },
-    rules: {
-      // No semicolons
-      "@stylistic/semi": ["error", "never"],
-
-      // 4 spaces
-      "@stylistic/indent": ["error", 4],
-
-      // Don't allow tabs
-      "@stylistic/no-tabs": "error",
-
-      // Maximum line length
-      "@stylistic/max-len": [
-        "error",
-        {
-          code: 100,
-          tabWidth: 4,
-          ignoreUrls: true,
-        },
-      ],
+    {
+        ignores: ['dist/**', 'node_modules/**', 'bin/**'],
     },
-  },
-  tseslint.configs.recommended,
-  pluginVue.configs["flat/essential"],
-  { files: ["**/*.vue"], 
-    languageOptions: { parserOptions: { parser: tseslint.parser } } ,
-  rules: {
-            // 4 spaces inside <template>
-            "vue/html-indent": ["error", 4],
-        },},
-  { files: ["**/*.css"], plugins: { css }, language: "css/css", extends: ["css/recommended"] },
+    {
+        ...js.configs.recommended,
+        files: scriptFiles,
+        languageOptions: {
+            globals: { ...globals.browser, ...globals.node },
+        },
+    },
+    ...tseslint.configs.recommended.map((config) => ({
+        ...config,
+        files: typescriptFiles,
+    })),
+    ...pluginVue.configs['flat/essential'].map((config) => ({
+        ...config,
+        files: vueFiles,
+    })),
+    {
+        files: vueFiles,
+        languageOptions: {
+            parserOptions: { parser: tseslint.parser },
+        },
+    },
+    {
+        files: ['**/*.css'],
+        plugins: { css },
+        language: 'css/css',
+        extends: ['css/recommended'],
+    },
+    prettier,
+    {
+        files: scriptFiles,
+        plugins: { '@stylistic': stylistic },
+        rules: {
+            'no-unused-vars': 'off',
+            '@typescript-eslint/no-unused-vars': 'off',
+            '@stylistic/indent': ['error', 4, { SwitchCase: 1 }],
+            '@stylistic/no-tabs': 'error',
+            '@stylistic/semi': ['error', 'never'],
+            '@stylistic/max-len': [
+                'error',
+                {
+                    code: 100,
+                    ignoreUrls: true,
+                    ignoreRegExpLiterals: true,
+                },
+            ],
+        },
+    },
 ])
