@@ -4,6 +4,7 @@ import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { buildGraph, type ProjectGraph } from '../graph'
+import type { Structure } from '../shared/types.ts'
 
 const graph = shallowRef<ProjectGraph>({ nodes: [], edges: [] })
 const loading = ref(true)
@@ -19,7 +20,7 @@ async function loadGraph() {
     try {
         const response = await fetch('/data', { signal: AbortSignal.timeout(10_000) })
         if (!response.ok) throw new Error(`Server returned HTTP ${response.status}.`)
-        graph.value = buildGraph(await response.json())
+        graph.value = buildGraph((await response.json()) as Structure)
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : 'Unknown error.'
     } finally {

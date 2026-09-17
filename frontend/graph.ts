@@ -1,27 +1,16 @@
 import { MarkerType, Position, type Edge, type Node } from '@vue-flow/core'
 import { ImportTypes, type ImportType } from '../shared/types.ts'
-
-interface ProjectEntry {
-    type: 'folder' | 'file'
-    label: string
-    contains?: ProjectEntry[]
-    imports?: ProjectImport[]
-}
-
-interface ProjectImport {
-    type: ImportType
-    label: string
-}
+import type { Structure, Import } from '../shared/types.ts'
 
 export interface ProjectGraph {
     nodes: Node[]
     edges: Edge[]
 }
 
-function parseEntries(value: unknown): ProjectEntry[] {
+function parseEntries(value: unknown): Structure {
     if (!Array.isArray(value)) throw new Error('Expected an array of project entries.')
 
-    return value.map((entry: unknown): ProjectEntry => {
+    return value.map((entry: unknown) => {
         if (!entry || typeof entry !== 'object') throw new Error('Invalid project entry.')
         const item = entry as Record<string, unknown>
         const label = item.label ?? item.iabel
@@ -40,7 +29,7 @@ function parseEntries(value: unknown): ProjectEntry[] {
 
         const rawImports = item.imports ?? []
         if (!Array.isArray(rawImports)) throw new Error('File imports must be an array.')
-        const imports = rawImports.map((value: unknown): ProjectImport => {
+        const imports = rawImports.map((value: unknown): Import => {
             // String imports remain supported for older backend responses.
             if (typeof value === 'string') return { type: 'lib', label: value }
             if (!value || typeof value !== 'object') throw new Error('Invalid file import.')
@@ -52,18 +41,18 @@ function parseEntries(value: unknown): ProjectEntry[] {
             ) {
                 throw new Error('Each import needs a label and a valid type.')
             }
-            return { type: imported.type as ProjectImport['type'], label: imported.label }
+            return { type: imported.type as Import['type'], label: imported.label }
         })
         return { type: 'file', label, imports }
     })
 }
 
-export function buildGraph(value: unknown): ProjectGraph {
+export function buildGraph(value: Structure): ProjectGraph {
     const entries = parseEntries(value)
     const nodes: Node[] = []
     const edges: Edge[] = []
     const files = new Map<string, string[]>()
-    const pendingImports: { source: string; imports: ProjectImport[] }[] = []
+    const pendingImports: { source: string; imports: Import[] }[] = []
     let row = 0
     let maxDepth = 0
 
@@ -82,7 +71,7 @@ export function buildGraph(value: unknown): ProjectGraph {
         })
     }
 
-    const visit = (items: ProjectEntry[], depth: number, parent?: string) => {
+    const visit = (items: Structure, depth: number, parent?: string) => {
         for (const entry of items) {
             const id = `project-${nodes.length}`
             maxDepth = Math.max(maxDepth, depth)
