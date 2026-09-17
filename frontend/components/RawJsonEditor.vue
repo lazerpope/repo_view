@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { IconArrowBackUp, IconDeviceFloppy } from '@tabler/icons-vue'
+import { IconArrowBackUp, IconDeviceFloppy, IconTypography } from '@tabler/icons-vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { monaco } from '../monaco/setupMonaco.ts'
 
 const props = defineProps<{ modelValue: string }>()
+const fontSize = defineModel<number>('fontSize', { default: 12 })
 const emit = defineEmits<{
     save: [value: unknown]
 }>()
@@ -34,7 +35,7 @@ onMounted(() => {
         language: 'json',
         theme: 'vs-dark',
         automaticLayout: true,
-        fontSize: 13,
+        fontSize: fontSize.value,
         minimap: { enabled: false },
         tabSize: 4,
         insertSpaces: true,
@@ -49,22 +50,32 @@ watch(
         if (editor && editor.getValue() !== value) editor.setValue(value)
     },
 )
+watch(fontSize, (value) => editor?.updateOptions({ fontSize: value }))
 
 onBeforeUnmount(() => editor?.dispose())
 </script>
 
 <template>
-        <div class="sidebar-actions">
-            <button type="button" class="secondairy-button" title="Discard JSON changes" @click="reset">
-                <IconArrowBackUp :size="17" />                
-            </button>
-            <button type="button" class="secondairy-button" title="Apply JSON" @click="save">
-                <IconDeviceFloppy :size="17" />
-               
-            </button>
-        </div>
     <div class="raw-editor">
         <div ref="host" class="raw-editor__host" />
         <p v-if="parseError" class="form-error" role="alert">{{ parseError }}</p>
+        <div class="sidebar-actions">
+            <label class="raw-font-size" title="Editor font size">
+                <IconTypography :size="18" />
+                <input v-model.number="fontSize" type="range" min="8" max="24" step="1" />
+                <output>{{ fontSize }}</output>
+            </label>
+            <button type="button" class="raw-action" title="Discard JSON changes" @click="reset">
+                <IconArrowBackUp :size="19" />
+            </button>
+            <button
+                type="button"
+                class="raw-action raw-action--primary"
+                title="Apply JSON"
+                @click="save"
+            >
+                <IconDeviceFloppy :size="19" />
+            </button>
+        </div>
     </div>
 </template>

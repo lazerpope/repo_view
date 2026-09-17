@@ -112,9 +112,7 @@ const data: Structure = [
                         type: 'file',
                         extension: 'ts',
                         label: 'useDebounce',
-                        imports: [
-                            { label: 'react', type: 'lib-external' },
-                        ],
+                        imports: [{ label: 'react', type: 'lib-external' }],
                     },
                 ],
             },
@@ -154,9 +152,7 @@ const data: Structure = [
                         type: 'file',
                         extension: 'ts',
                         label: 'analyticsService',
-                        imports: [
-                            { label: 'src/services/apiClient', type: 'file' },
-                        ],
+                        imports: [{ label: 'src/services/apiClient', type: 'file' }],
                     },
                 ],
             },
@@ -175,9 +171,7 @@ const data: Structure = [
                         type: 'file',
                         extension: 'ts',
                         label: 'project',
-                        imports: [
-                            { label: 'src/types/user', type: 'file' },
-                        ],
+                        imports: [{ label: 'src/types/user', type: 'file' }],
                     },
                 ],
             },
@@ -190,25 +184,19 @@ const data: Structure = [
                         type: 'file',
                         extension: 'ts',
                         label: 'formatDate',
-                        imports: [
-                            { label: 'date-fns', type: 'lib' },
-                        ],
+                        imports: [{ label: 'date-fns', type: 'lib' }],
                     },
                     {
                         type: 'file',
                         extension: 'ts',
                         label: 'generateId',
-                        imports: [
-                            { label: 'node:crypto', type: 'lib-builtin' },
-                        ],
+                        imports: [{ label: 'node:crypto', type: 'lib-builtin' }],
                     },
                     {
                         type: 'file',
                         extension: 'ts',
                         label: 'sortProjects',
-                        imports: [
-                            { label: 'src/types/project', type: 'file' },
-                        ],
+                        imports: [{ label: 'src/types/project', type: 'file' }],
                     },
                 ],
             },
@@ -221,9 +209,7 @@ const data: Structure = [
                         type: 'file',
                         extension: 'ts',
                         label: 'environment',
-                        imports: [
-                            { label: 'node:process', type: 'lib-builtin' },
-                        ],
+                        imports: [{ label: 'node:process', type: 'lib-builtin' }],
                     },
                 ],
             },
@@ -283,9 +269,7 @@ const data: Structure = [
                         type: 'file',
                         extension: 'ts',
                         label: 'healthRoutes',
-                        imports: [
-                            { label: 'express', type: 'lib-external' },
-                        ],
+                        imports: [{ label: 'express', type: 'lib-external' }],
                     },
                 ],
             },
@@ -314,17 +298,13 @@ const data: Structure = [
                         type: 'file',
                         extension: 'ts',
                         label: 'client',
-                        imports: [
-                            { label: '@prisma/client', type: 'lib-external' },
-                        ],
+                        imports: [{ label: '@prisma/client', type: 'lib-external' }],
                     },
                     {
                         type: 'file',
                         extension: 'ts',
                         label: 'projectRepository',
-                        imports: [
-                            { label: 'server/database/client', type: 'file' },
-                        ],
+                        imports: [{ label: 'server/database/client', type: 'file' }],
                     },
                 ],
             },

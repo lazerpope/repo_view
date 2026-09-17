@@ -103,6 +103,24 @@ function normalizePath(value: string): string {
     return normalized.startsWith('/') ? normalized : `/${normalized}`
 }
 
+export function collectSubtreeNodeKeys(structure: Structure, folderKey: string): string[] {
+    const folderPath = normalizePath(folderKey.replace(/^folder:/, ''))
+    const keys: string[] = []
+
+    const visit = (entries: Structure, parentPath: string) => {
+        for (const entry of entries) {
+            const path = normalizePath(`${parentPath}/${entry.label}`)
+            if (path === folderPath || path.startsWith(`${folderPath}/`)) {
+                keys.push(`${entry.type}:${path}`)
+            }
+            if (entry.type === 'folder') visit(entry.contains, path)
+        }
+    }
+
+    visit(structure, '')
+    return keys
+}
+
 function edgeType(curve: ConnectionCurve): string {
     return curve === 'bezier' ? 'default' : curve
 }
@@ -126,8 +144,13 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
     const edges: Edge[] = []
     const filesByPath = new Map<string, string[]>()
     const pendingImports: { source: string; imports: Import[] }[] = []
-    let row = 0
-    let maxDepth = 0
+    const folderIndent = 290
+    const fileOffset = 290
+    const fileGap = 230
+    const rowGap = 195
+    const filesPerRow = 4
+    let layoutY = 20
+    let maxProjectX = 0
 
     const addFileIndex = (index: Map<string, string[]>, key: string, id: string) => {
         index.set(key, [...(index.get(key) ?? []), id])
@@ -141,8 +164,14 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
             target,
             type: edgeType(style.curve),
             animated: style.animated,
-            markerStart: kind === 'imports' ? { type: MarkerType.ArrowClosed, color: style.color } : undefined,
-            markerEnd:  kind !== 'imports' ?  { type: MarkerType.ArrowClosed, color: style.color }: undefined,
+            markerStart:
+                kind === 'imports'
+                    ? { type: MarkerType.ArrowClosed, color: style.color }
+                    : undefined,
+            markerEnd:
+                kind !== 'imports'
+                    ? { type: MarkerType.ArrowClosed, color: style.color }
+                    : undefined,
             class: `project-edge ${kind}-edge ${style.line}-edge`,
             style: {
                 stroke: style.color,
@@ -152,13 +181,18 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
         })
     }
 
-    const addNode = (label: string, kind: NodeKind, depth: number, path: string) => {
+    const addNode = (
+        label: string,
+        kind: NodeKind,
+        position: { x: number; y: number },
+        path: string,
+    ) => {
         const key = `${kind}:${path}`
         const id = `node-${encodeURIComponent(key)}`
         const style = options.nodeStyles[kind]
         nodes.push({
             id,
-            position: { x: depth * 280, y: row++ * 125 },
+            position,
             data: { label, kind, path, key },
             class: `project-node ${kind}-node`,
             style: {
@@ -173,43 +207,73 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
         return id
     }
 
-    const visit = (
-        items: Structure,
+    const addProjectFile = (
+        file: File,
+        parent: string | undefined,
+        parentPath: string,
+        position: { x: number; y: number },
+    ) => {
+        const path = normalizePath(`${parentPath}/${file.label}`)
+        const id = addNode(fileName(file), 'file', position, path)
+        maxProjectX = Math.max(maxProjectX, position.x)
+        if (parent) connect(parent, id, 'contains')
+        addFileIndex(filesByPath, path, id)
+        addFileIndex(filesByPath, normalizePath(`${parentPath}/${fileName(file)}`), id)
+        pendingImports.push({ source: id, imports: file.imports })
+    }
+
+    const visibleFiles = (items: Structure) =>
+        items.filter(
+            (entry): entry is File =>
+                entry.type === 'file' &&
+                options.enabledExtensions.has(extensionOf(entry.label, entry.extension)),
+        )
+
+    const visitFolder = (
+        folder: Folder,
         depth: number,
         parent: string | undefined,
         parentPath: string,
     ) => {
-        for (const entry of items) {
-            const path = normalizePath(`${parentPath}/${entry.label}`)
-            if (
-                entry.type === 'file' &&
-                !options.enabledExtensions.has(extensionOf(entry.label, entry.extension))
-            ) {
-                continue
-            }
+        const path = normalizePath(`${parentPath}/${folder.label}`)
+        const folderX = depth * folderIndent
+        const folderY = layoutY
+        const id = addNode(folder.label, 'folder', { x: folderX, y: folderY }, path)
+        maxProjectX = Math.max(maxProjectX, folderX)
+        if (parent) connect(parent, id, 'contains')
 
-            maxDepth = Math.max(maxDepth, depth)
-            const id = addNode(
-                entry.type === 'file' ? fileName(entry) : entry.label,
-                entry.type,
-                depth,
-                path,
-            )
-            if (parent) connect(parent, id, 'contains')
+        const files = visibleFiles(folder.contains)
+        files.forEach((file, index) => {
+            addProjectFile(file, id, path, {
+                x: folderX + fileOffset + (index % filesPerRow) * fileGap,
+                y: folderY + 85 + Math.floor(index / filesPerRow) * rowGap,
+            })
+        })
 
-            if (entry.type === 'folder') {
-                visit(entry.contains, depth + 1, id, path)
-            } else {
-                addFileIndex(filesByPath, path, id)
-                addFileIndex(filesByPath, normalizePath(`${parentPath}/${fileName(entry)}`), id)
-                pendingImports.push({ source: id, imports: entry.imports })
-            }
+        const fileRows = Math.ceil(files.length / filesPerRow)
+        layoutY = folderY + (fileRows ? 105 + fileRows * rowGap : 130)
+
+        for (const child of folder.contains) {
+            if (child.type === 'folder') visitFolder(child, depth + 1, id, path)
         }
     }
 
-    visit(entries, 0, undefined, options.basePath)
+    const rootFiles = visibleFiles(entries)
+    rootFiles.forEach((file, index) => {
+        addProjectFile(file, undefined, options.basePath, {
+            x: (index % filesPerRow) * fileGap,
+            y: layoutY + Math.floor(index / filesPerRow) * rowGap,
+        })
+    })
+    if (rootFiles.length) layoutY += Math.ceil(rootFiles.length / filesPerRow) * rowGap + 30
+
+    for (const entry of entries) {
+        if (entry.type === 'folder') visitFolder(entry, 0, undefined, options.basePath)
+    }
 
     const externalNodes = new Map<string, string>()
+    const externalX = maxProjectX + 300
+    let externalY = 20
     for (const { source, imports } of pendingImports) {
         const uniqueImports = new Map(imports.map((item) => [`${item.type}:${item.label}`, item]))
         for (const [key, imported] of uniqueImports) {
@@ -221,7 +285,10 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
 
             let target = externalNodes.get(key)
             if (!target) {
-                target = addNode(imported.label, imported.type, maxDepth + 1, key)
+                const sourceY = nodes.find((node) => node.id === source)?.position.y ?? 0
+                externalY = Math.max(externalY, sourceY)
+                target = addNode(imported.label, imported.type, { x: externalX, y: externalY }, key)
+                externalY += 110
                 externalNodes.set(key, target)
             }
             connect(source, target, 'imports')

@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Structure } from '../shared/types.ts'
-import { applyGraphView, buildGraph, type GraphOptions } from '../frontend/graph.ts'
+import {
+    applyGraphView,
+    buildGraph,
+    collectSubtreeNodeKeys,
+    type GraphOptions,
+} from '../frontend/graph.ts'
 import { defaultConnectionStyles, defaultNodeStyles } from '../frontend/stores/appUI.ts'
 
 const structure: Structure = [
@@ -66,6 +71,34 @@ test('ignores project-file links outside the selected folder', () => {
     assert.ok(graph.nodes.some((node) => node.data.label === 'express'))
 })
 
+test('lays out direct files beside their folder and nested folders below it', () => {
+    const layoutStructure: Structure = [
+        {
+            type: 'folder',
+            label: 'root',
+            contains: [
+                { type: 'file', label: 'one', extension: 'ts', imports: [] },
+                { type: 'file', label: 'two', extension: 'ts', imports: [] },
+                { type: 'folder', label: 'child', contains: [] },
+            ],
+        },
+    ]
+    const graph = buildGraph(layoutStructure, options)
+    const root = graph.nodes.find((node) => node.data.key === 'folder:/root')
+    const one = graph.nodes.find((node) => node.data.key === 'file:/root/one')
+    const two = graph.nodes.find((node) => node.data.key === 'file:/root/two')
+    const child = graph.nodes.find((node) => node.data.key === 'folder:/root/child')
+
+    assert.ok(root)
+    assert.ok(one)
+    assert.ok(two)
+    assert.ok(child)
+    assert.equal(one.position.y, two.position.y)
+    assert.ok(one.position.x > root.position.x)
+    assert.ok(child.position.x > root.position.x)
+    assert.ok(child.position.y > one.position.y)
+})
+
 test('limits a focused graph by outgoing connection depth', () => {
     const baseGraph = buildGraph(structure, options)
     const graph = applyGraphView(baseGraph, {
@@ -96,4 +129,33 @@ test('removes a hidden node and all of its connections', () => {
         graph.edges.some((edge) => edge.source === hiddenNode.id || edge.target === hiddenNode.id),
         false,
     )
+})
+
+test('collects every descendant when a folder is hidden', () => {
+    const nestedStructure: Structure = [
+        {
+            type: 'folder',
+            label: 'root',
+            contains: [
+                {
+                    type: 'folder',
+                    label: 'child',
+                    contains: [
+                        {
+                            type: 'file',
+                            label: 'leaf',
+                            extension: 'ts',
+                            imports: [],
+                        },
+                    ],
+                },
+            ],
+        },
+    ]
+
+    assert.deepEqual(collectSubtreeNodeKeys(nestedStructure, 'folder:/root').sort(), [
+        'file:/root/child/leaf',
+        'folder:/root',
+        'folder:/root/child',
+    ])
 })

@@ -15,7 +15,7 @@ import {
 } from '@tabler/icons-vue'
 import { Background } from '@vue-flow/background'
 import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { applyGraphView, buildGraph } from '../graph.ts'
 import { useAppData } from '../stores/appData.ts'
 import {
@@ -28,9 +28,10 @@ import {
 
 const appData = useAppData()
 const appUI = useAppUI()
-const { fitView, onNodesInitialized, zoomIn, zoomOut } = useVueFlow()
+const { fitView, onNodesInitialized } = useVueFlow()
 const graphCanvas = ref<HTMLElement | null>(null)
 const nodeMenuElement = ref<HTMLElement | null>(null)
+const initialViewFitted = ref(false)
 
 const baseGraph = computed(() =>
     buildGraph(appData.visibleStructure, {
@@ -120,8 +121,11 @@ function closeMenuFromOutside(event: PointerEvent) {
     appUI.closeNodeMenu()
 }
 
-onNodesInitialized(fitGraph)
-watch(graph, () => void nextTick(fitGraph))
+onNodesInitialized(() => {
+    if (initialViewFitted.value || !graph.value.nodes.length) return
+    initialViewFitted.value = true
+    fitGraph()
+})
 onMounted(() => {
     document.addEventListener('pointerdown', closeMenuFromOutside)
     if (!appData.rawData.length) void appData.loadData()
@@ -169,7 +173,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                 :max-zoom="3"
                 :nodes-connectable="false"
                 :delete-key-code="null"
-                fit-view-on-init
                 @node-click="openNodeMenu"
                 @pane-click="appUI.closeNodeMenu"
             >
@@ -221,7 +224,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                     :style="{
                         color: appUI.nodeStyles[kind].color,
                         backgroundColor: appUI.nodeStyles[kind].backgroundColor,
-                        fontSize: `${appUI.nodeStyles[kind].fontSize * 0.78}px`,
                     }"
                 >
                     {{ nodeLabels[kind] }}
@@ -284,12 +286,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                     @click="appData.clearFocus"
                 >
                     <IconX :size="19" />
-                </button>
-                <button class="icon-button" title="Zoom in" @click="zoomIn()">
-                    <IconZoomIn :size="19" />
-                </button>
-                <button class="icon-button" title="Zoom out" @click="zoomOut()">
-                    <IconZoomOut :size="19" />
                 </button>
                 <button class="icon-button" title="Fit graph" @click="fitGraph">
                     <IconFocusCentered :size="19" />

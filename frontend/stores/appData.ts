@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, inject, ref, watch } from 'vue'
 import type { Folder, Structure } from '../../shared/types.ts'
-import { extensionOf, parseStructure } from '../graph.ts'
+import { collectSubtreeNodeKeys, extensionOf, parseStructure } from '../graph.ts'
 import { memoryPreferencesProvider, preferencesProviderKey } from '../providers/preferences.ts'
 
 export interface FolderChoice {
@@ -114,9 +114,12 @@ export const useAppData = defineStore('appData', () => {
     }
 
     function hideNode(key: string) {
-        if (!hiddenNodeKeys.value.includes(key))
-            hiddenNodeKeys.value = [...hiddenNodeKeys.value, key]
-        if (focusedNodeKey.value === key) clearFocus()
+        const subtreeKeys = key.startsWith('folder:')
+            ? collectSubtreeNodeKeys(rawData.value, key)
+            : [key]
+        const keys = subtreeKeys.length ? subtreeKeys : [key]
+        hiddenNodeKeys.value = [...new Set([...hiddenNodeKeys.value, ...keys])]
+        if (focusedNodeKey.value && keys.includes(focusedNodeKey.value)) clearFocus()
     }
 
     function clearHiddenNodes() {

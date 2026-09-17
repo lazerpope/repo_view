@@ -34,7 +34,9 @@ export interface NodeMenuState {
 
 interface AppUIPreferences {
     sidebarOpen: boolean
+    sidebarWidth: number
     activeTab: SidebarTab
+    jsonFontSize: number
     nodeStyles: Record<NodeKind, NodeVisualStyle>
     connectionStyles: Record<ConnectionKind, ConnectionVisualStyle>
 }
@@ -62,7 +64,9 @@ export const useAppUI = defineStore('appUI', () => {
     const provider = inject(preferencesProviderKey, memoryPreferencesProvider)
     const saved = provider.load<Partial<AppUIPreferences>>(storageKey)
     const sidebarOpen = ref(saved?.sidebarOpen ?? false)
+    const sidebarWidth = ref(Math.max(500, saved?.sidebarWidth ?? 500))
     const activeTab = ref<SidebarTab>(saved?.activeTab ?? 'styles')
+    const jsonFontSize = ref(Math.max(8, Math.min(24, saved?.jsonFontSize ?? 12)))
     const nodeMenu = ref<NodeMenuState | null>(null)
     const nodeStyles = reactive(cloneDefaults(defaultNodeStyles))
     const connectionStyles = reactive(cloneDefaults(defaultConnectionStyles))
@@ -99,7 +103,9 @@ export const useAppUI = defineStore('appUI', () => {
     watch(
         () => ({
             sidebarOpen: sidebarOpen.value,
+            sidebarWidth: sidebarWidth.value,
             activeTab: activeTab.value,
+            jsonFontSize: jsonFontSize.value,
             nodeStyles,
             connectionStyles,
         }),
@@ -109,7 +115,9 @@ export const useAppUI = defineStore('appUI', () => {
 
     return {
         sidebarOpen,
+        sidebarWidth,
         activeTab,
+        jsonFontSize,
         nodeStyles,
         connectionStyles,
         nodeMenu,
