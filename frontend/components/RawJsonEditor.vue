@@ -54,18 +54,17 @@ onBeforeUnmount(() => editor?.dispose())
 </script>
 
 <template>
+        <div class="sidebar-actions">
+            <button type="button" class="secondairy-button" title="Discard JSON changes" @click="reset">
+                <IconArrowBackUp :size="17" />                
+            </button>
+            <button type="button" class="secondairy-button" title="Apply JSON" @click="save">
+                <IconDeviceFloppy :size="17" />
+               
+            </button>
+        </div>
     <div class="raw-editor">
         <div ref="host" class="raw-editor__host" />
         <p v-if="parseError" class="form-error" role="alert">{{ parseError }}</p>
-        <div class="sidebar-actions">
-            <button type="button" title="Discard JSON changes" @click="reset">
-                <IconArrowBackUp :size="17" />
-                Cancel
-            </button>
-            <button type="button" class="primary-button" title="Apply JSON" @click="save">
-                <IconDeviceFloppy :size="17" />
-                Save
-            </button>
-        </div>
     </div>
 </template>

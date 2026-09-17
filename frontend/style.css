@@ -61,6 +61,10 @@ button:disabled {
     border-color: #14b8a6;
     background: #0f766e;
 }
+.secondairy-button {
+    border-color: #14b8a6;
+    background: #0f766e;
+}
 
 .icon-button {
     width: 36px;
@@ -257,6 +261,7 @@ h2 {
 }
 
 .extension-filters {
+    width: fit-content;
     position: absolute;
     top: 10px;
     left: 10px;
@@ -481,6 +486,11 @@ h2 {
 }
 
 .sidebar-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.sidebar-actions.button {
     display: flex;
     justify-content: flex-end;
     gap: 8px;

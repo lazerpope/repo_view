@@ -25,7 +25,7 @@ const connectionLabels = {
 const tabs: { id: SidebarTab; label: string; icon: typeof IconPalette }[] = [
     { id: 'styles', label: 'Styles', icon: IconPalette },
     { id: 'raw', label: 'Raw JSON', icon: IconBraces },
-    { id: 'folders', label: 'Folders', icon: IconFolders },
+   
 ]
 
 function saveRawData(value: unknown) {
@@ -121,39 +121,9 @@ function saveRawData(value: unknown) {
         </div>
 
         <div v-else-if="appUI.activeTab === 'raw'" class="sidebar-content raw-content">
-            <h2>Backend data</h2>
-            <p class="sidebar-description">
-                Edit the loaded project JSON, then apply it to the graph.
-            </p>
+          
             <RawJsonEditor :model-value="rawJson" @save="saveRawData" />
         </div>
 
-        <div v-else class="sidebar-content folder-content">
-            <h2>Starting folder</h2>
-            <p class="sidebar-description">
-                File links outside the selected folder are left out of the graph.
-            </p>
-            <label class="folder-choice">
-                <input
-                    type="radio"
-                    name="start-folder"
-                    :checked="appData.selectedFolderPath === null"
-                    @change="appData.selectFolder(null)"
-                />
-                <span>/ (entire project)</span>
-            </label>
-            <label v-for="folder in appData.folders" :key="folder.path" class="folder-choice">
-                <input
-                    type="radio"
-                    name="start-folder"
-                    :checked="appData.selectedFolderPath === folder.path"
-                    @change="appData.selectFolder(folder.path)"
-                />
-                <span :title="folder.displayPath">{{ folder.displayPath }}</span>
-            </label>
-            <p v-if="!appData.folders.length" class="empty-message">
-                No folders in the loaded data.
-            </p>
-        </div>
     </aside>
 </template>
