@@ -13,32 +13,31 @@ const data: Structure = [
                 contains: [
                     {
                         type: 'file',
-                        extension:'js',
+                        extension: 'js',
                         label: 'file2',
                         imports: [
                             { label: 'import3', type: 'lib-builtin' },
                             { label: 'import2', type: 'lib' },
-                            { label: 'file1', type: 'file' },
+                            { label: 'folder1/file1', type: 'file' },
                         ],
                     },
                     {
                         type: 'file',
-                        extension:'js',
+                        extension: 'js',
                         label: 'file4',
-                        imports: [
-                           
-                        ],
+                        imports: [],
                     },
                 ],
             },
             {
                 type: 'file',
-                extension:'jsx',
+                extension: 'jsx',
                 label: 'file1',
                 imports: [
                     { label: 'import1', type: 'lib-external' },
                     { label: 'import1', type: 'lib' },
                     { label: 'import2', type: 'lib' },
+                    { label: 'folder1/folder2/file4', type: 'file' },
                 ],
             },
         ],

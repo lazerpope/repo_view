@@ -1,0 +1,142 @@
+import { defineStore } from 'pinia'
+import { computed, inject, ref, watch } from 'vue'
+import type { Folder, Structure } from '../../shared/types.ts'
+import { extensionOf, parseStructure } from '../graph.ts'
+import { memoryPreferencesProvider, preferencesProviderKey } from '../providers/preferences.ts'
+
+export interface FolderChoice {
+    path: string
+    name: string
+    displayPath: string
+    parentPath: string
+    depth: number
+    folder: Folder
+}
+
+interface AppDataPreferences {
+    selectedFolderPath: string | null
+    hiddenExtensions: string[]
+}
+
+const storageKey = 'repo-view:data-preferences'
+function listFolders(structure: Structure): FolderChoice[] {
+    const choices: FolderChoice[] = []
+
+    const visit = (items: Structure, labelPath: string[]) => {
+        items.forEach((entry) => {
+            if (entry.type !== 'folder') return
+            const nextLabelPath = [...labelPath, entry.label]
+            choices.push({
+                path: `/${nextLabelPath.join('/')}`,
+                name: entry.label,
+                displayPath: `/${nextLabelPath.join('/')}`,
+                parentPath: labelPath.length ? `/${labelPath.join('/')}` : '',
+                depth: labelPath.length,
+                folder: entry,
+            })
+            visit(entry.contains, nextLabelPath)
+        })
+    }
+
+    visit(structure, [])
+    return choices
+}
+
+function listExtensions(structure: Structure): string[] {
+    const extensions = new Set<string>()
+    const visit = (items: Structure) => {
+        for (const entry of items) {
+            if (entry.type === 'folder') visit(entry.contains)
+            else extensions.add(extensionOf(entry.label, entry.extension))
+        }
+    }
+    visit(structure)
+    return [...extensions].sort((left, right) => left.localeCompare(right))
+}
+
+export const useAppData = defineStore('appData', () => {
+    const provider = inject(preferencesProviderKey, memoryPreferencesProvider)
+    const saved = provider.load<AppDataPreferences>(storageKey)
+    const rawData = ref<Structure>([])
+    const loading = ref(false)
+    const error = ref('')
+    const selectedFolderPath = ref<string | null>(saved?.selectedFolderPath ?? null)
+    const hiddenExtensions = ref<string[]>(saved?.hiddenExtensions ?? [])
+
+    const folders = computed(() => listFolders(rawData.value))
+    const selectedFolder = computed(
+        () => folders.value.find((folder) => folder.path === selectedFolderPath.value) ?? null,
+    )
+    const visibleStructure = computed<Structure>(() =>
+        selectedFolder.value ? [selectedFolder.value.folder] : rawData.value,
+    )
+    const graphBasePath = computed(() => selectedFolder.value?.parentPath ?? '')
+    const extensions = computed(() => listExtensions(visibleStructure.value))
+    const enabledExtensions = computed(
+        () => new Set(extensions.value.filter((value) => !hiddenExtensions.value.includes(value))),
+    )
+
+    function setData(value: unknown) {
+        rawData.value = parseStructure(value)
+        if (selectedFolderPath.value && !selectedFolder.value) selectedFolderPath.value = null
+    }
+
+    async function loadData() {
+        loading.value = true
+        error.value = ''
+
+        try {
+            const response = await fetch('/data', { signal: AbortSignal.timeout(10_000) })
+            if (!response.ok) throw new Error(`Server returned HTTP ${response.status}.`)
+            setData(await response.json())
+        } catch (cause) {
+            error.value = cause instanceof Error ? cause.message : 'Unknown error.'
+        } finally {
+            loading.value = false
+        }
+    }
+
+    function selectFolder(id: string | null) {
+        selectedFolderPath.value = id
+    }
+
+    function setExtensionEnabled(extension: string, enabled: boolean) {
+        const hidden = new Set(hiddenExtensions.value)
+        if (enabled) hidden.delete(extension)
+        else hidden.add(extension)
+        hiddenExtensions.value = [...hidden]
+    }
+    let storeTimeout: ReturnType<typeof setTimeout>
+    watch(
+        [selectedFolderPath, hiddenExtensions],
+        () => {
+            clearTimeout(storeTimeout)
+
+            storeTimeout = setTimeout(() => {
+                provider.store<AppDataPreferences>(storageKey, {
+                    selectedFolderPath: selectedFolderPath.value,
+                    hiddenExtensions: hiddenExtensions.value,
+                })
+            }, 200)
+        },
+        { deep: true },
+    )
+
+    return {
+        rawData,
+        loading,
+        error,
+        selectedFolderPath,
+        hiddenExtensions,
+        folders,
+        selectedFolder,
+        visibleStructure,
+        graphBasePath,
+        extensions,
+        enabledExtensions,
+        loadData,
+        setData,
+        selectFolder,
+        setExtensionEnabled,
+    }
+})
