@@ -39,9 +39,6 @@ onMounted(loadGraph)
                 <p>Folders, files, and their imports</p>
             </div>
             <div class="toolbar-actions">
-                <span class="graph-count"
-                    >{{ graph.nodes.length }} nodes · {{ graph.edges.length }} connections</span
-                >
                 <button :disabled="loading" @click="loadGraph">
                     {{ loading ? 'Loading…' : 'Refresh' }}
                 </button>
@@ -49,6 +46,9 @@ onMounted(loadGraph)
         </header>
 
         <section class="graph-canvas" aria-label="Project structure graph" :aria-busy="loading">
+                <div class="graph-count"
+                    >{{ graph.nodes.length }} nodes · {{ graph.edges.length }} connections</div
+                >
             <VueFlow
                 :nodes="graph.nodes"
                 :edges="graph.edges"

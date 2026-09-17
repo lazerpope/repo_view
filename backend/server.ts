@@ -13,6 +13,7 @@ const data: Structure = [
                 contains: [
                     {
                         type: 'file',
+                        extension:'js',
                         label: 'file2',
                         imports: [
                             { label: 'import3', type: 'lib-builtin' },
@@ -20,10 +21,19 @@ const data: Structure = [
                             { label: 'file1', type: 'file' },
                         ],
                     },
+                    {
+                        type: 'file',
+                        extension:'js',
+                        label: 'file4',
+                        imports: [
+                           
+                        ],
+                    },
                 ],
             },
             {
                 type: 'file',
+                extension:'jsx',
                 label: 'file1',
                 imports: [
                     { label: 'import1', type: 'lib-external' },
