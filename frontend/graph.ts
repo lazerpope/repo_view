@@ -246,7 +246,7 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
         files.forEach((file, index) => {
             addProjectFile(file, id, path, {
                 x: folderX + fileOffset + (index % filesPerRow) * fileGap,
-                y: folderY + 85 + Math.floor(index / filesPerRow) * rowGap,
+                y: folderY + 180 + Math.floor(index / filesPerRow) * rowGap,
             })
         })
 
