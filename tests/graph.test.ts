@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Structure } from '../shared/types.ts'
-import { buildGraph, type GraphOptions } from '../frontend/graph.ts'
+import { applyGraphView, buildGraph, type GraphOptions } from '../frontend/graph.ts'
 import { defaultConnectionStyles, defaultNodeStyles } from '../frontend/stores/appUI.ts'
 
 const structure: Structure = [
@@ -64,4 +64,36 @@ test('ignores project-file links outside the selected folder', () => {
         false,
     )
     assert.ok(graph.nodes.some((node) => node.data.label === 'express'))
+})
+
+test('limits a focused graph by outgoing connection depth', () => {
+    const baseGraph = buildGraph(structure, options)
+    const graph = applyGraphView(baseGraph, {
+        hiddenNodeKeys: [],
+        focusedNodeKey: 'folder:/A',
+        focusDepth: 1,
+    })
+
+    assert.deepEqual(graph.nodes.map((node) => node.data.key).sort(), ['file:/A/main', 'folder:/A'])
+})
+
+test('removes a hidden node and all of its connections', () => {
+    const baseGraph = buildGraph(structure, options)
+    const hiddenNode = baseGraph.nodes.find((node) => node.data.key === 'file:/A/main')
+    assert.ok(hiddenNode)
+
+    const graph = applyGraphView(baseGraph, {
+        hiddenNodeKeys: ['file:/A/main'],
+        focusedNodeKey: null,
+        focusDepth: null,
+    })
+
+    assert.equal(
+        graph.nodes.some((node) => node.id === hiddenNode.id),
+        false,
+    )
+    assert.equal(
+        graph.edges.some((edge) => edge.source === hiddenNode.id || edge.target === hiddenNode.id),
+        false,
+    )
 })

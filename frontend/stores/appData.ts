@@ -16,6 +16,9 @@ export interface FolderChoice {
 interface AppDataPreferences {
     selectedFolderPath: string | null
     hiddenExtensions: string[]
+    hiddenNodeKeys: string[]
+    focusedNodeKey: string | null
+    focusDepth: number | null
 }
 
 const storageKey = 'repo-view:data-preferences'
@@ -56,12 +59,15 @@ function listExtensions(structure: Structure): string[] {
 
 export const useAppData = defineStore('appData', () => {
     const provider = inject(preferencesProviderKey, memoryPreferencesProvider)
-    const saved = provider.load<AppDataPreferences>(storageKey)
+    const saved = provider.load<Partial<AppDataPreferences>>(storageKey)
     const rawData = ref<Structure>([])
     const loading = ref(false)
     const error = ref('')
     const selectedFolderPath = ref<string | null>(saved?.selectedFolderPath ?? null)
     const hiddenExtensions = ref<string[]>(saved?.hiddenExtensions ?? [])
+    const hiddenNodeKeys = ref<string[]>(saved?.hiddenNodeKeys ?? [])
+    const focusedNodeKey = ref<string | null>(saved?.focusedNodeKey ?? null)
+    const focusDepth = ref<number | null>(saved?.focusDepth ?? null)
 
     const folders = computed(() => listFolders(rawData.value))
     const selectedFolder = computed(
@@ -106,9 +112,33 @@ export const useAppData = defineStore('appData', () => {
         else hidden.add(extension)
         hiddenExtensions.value = [...hidden]
     }
+
+    function hideNode(key: string) {
+        if (!hiddenNodeKeys.value.includes(key))
+            hiddenNodeKeys.value = [...hiddenNodeKeys.value, key]
+        if (focusedNodeKey.value === key) clearFocus()
+    }
+
+    function clearHiddenNodes() {
+        hiddenNodeKeys.value = []
+    }
+
+    function focusNode(key: string) {
+        focusedNodeKey.value = key
+        focusDepth.value = null
+    }
+
+    function clearFocus() {
+        focusedNodeKey.value = null
+        focusDepth.value = null
+    }
+
+    function setFocusDepth(depth: number | null) {
+        focusDepth.value = depth
+    }
     let storeTimeout: ReturnType<typeof setTimeout>
     watch(
-        [selectedFolderPath, hiddenExtensions],
+        [selectedFolderPath, hiddenExtensions, hiddenNodeKeys, focusedNodeKey, focusDepth],
         () => {
             clearTimeout(storeTimeout)
 
@@ -116,6 +146,9 @@ export const useAppData = defineStore('appData', () => {
                 provider.store<AppDataPreferences>(storageKey, {
                     selectedFolderPath: selectedFolderPath.value,
                     hiddenExtensions: hiddenExtensions.value,
+                    hiddenNodeKeys: hiddenNodeKeys.value,
+                    focusedNodeKey: focusedNodeKey.value,
+                    focusDepth: focusDepth.value,
                 })
             }, 200)
         },
@@ -128,6 +161,9 @@ export const useAppData = defineStore('appData', () => {
         error,
         selectedFolderPath,
         hiddenExtensions,
+        hiddenNodeKeys,
+        focusedNodeKey,
+        focusDepth,
         folders,
         selectedFolder,
         visibleStructure,
@@ -138,5 +174,10 @@ export const useAppData = defineStore('appData', () => {
         setData,
         selectFolder,
         setExtensionEnabled,
+        hideNode,
+        clearHiddenNodes,
+        focusNode,
+        clearFocus,
+        setFocusDepth,
     }
 })

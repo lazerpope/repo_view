@@ -36,6 +36,12 @@ export interface ProjectGraph {
     edges: Edge[]
 }
 
+export interface GraphViewOptions {
+    hiddenNodeKeys: readonly string[]
+    focusedNodeKey: string | null
+    focusDepth: number | null
+}
+
 function parseImport(value: unknown): Import {
     if (typeof value === 'string') return { type: 'lib', label: value }
     if (!value || typeof value !== 'object') throw new Error('Invalid file import.')
@@ -146,12 +152,13 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
     }
 
     const addNode = (label: string, kind: NodeKind, depth: number, path: string) => {
-        const id = `project-${nodes.length}`
+        const key = `${kind}:${path}`
+        const id = `node-${encodeURIComponent(key)}`
         const style = options.nodeStyles[kind]
         nodes.push({
             id,
             position: { x: depth * 280, y: row++ * 125 },
-            data: { label, kind, path },
+            data: { label, kind, path, key },
             class: `project-node ${kind}-node`,
             style: {
                 color: style.color,
@@ -220,5 +227,36 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
         }
     }
 
+    return { nodes, edges }
+}
+
+export function applyGraphView(graph: ProjectGraph, options: GraphViewOptions): ProjectGraph {
+    const hiddenKeys = new Set(options.hiddenNodeKeys)
+    let nodes = graph.nodes.filter((node) => !hiddenKeys.has(String(node.data.key)))
+    const nodeIds = new Set(nodes.map((node) => node.id))
+    let edges = graph.edges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+
+    if (!options.focusedNodeKey) return { nodes, edges }
+    const root = nodes.find((node) => node.data.key === options.focusedNodeKey)
+    if (!root) return { nodes: [], edges: [] }
+
+    const visibleIds = new Set([root.id])
+    let frontier = new Set([root.id])
+    const depth = options.focusDepth ?? Number.POSITIVE_INFINITY
+    let step = 0
+
+    while (frontier.size && step < depth) {
+        const next = new Set<string>()
+        for (const edge of edges) {
+            if (!frontier.has(edge.source) || visibleIds.has(edge.target)) continue
+            visibleIds.add(edge.target)
+            next.add(edge.target)
+        }
+        frontier = next
+        step += 1
+    }
+
+    nodes = nodes.filter((node) => visibleIds.has(node.id))
+    edges = edges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target))
     return { nodes, edges }
 }

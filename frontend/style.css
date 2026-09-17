@@ -196,11 +196,7 @@ h2 {
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 8px;
-    border: 1px solid #334155;
-    border-radius: 9px;
-    background: #0f172aed;
-    box-shadow: 0 8px 24px #0004;
+ 
 }
 
 .legend {
@@ -237,6 +233,16 @@ h2 {
     max-width: min(680px, calc(100% - 32px));
 }
 
+.graph-canvas > .extension-filters {
+    position: absolute;
+    z-index: 3;
+    top: 16px;
+    right: 16px;
+  
+  
+   
+}
+
 .count-item,
 .extension-filters label {
     display: inline-flex;
@@ -270,6 +276,64 @@ h2 {
 .extension-filters input {
     margin: 0;
     accent-color: #14b8a6;
+}
+
+.focus-depth {
+    display: inline-grid;
+    grid-template-columns: auto minmax(90px, 150px) 24px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 5px;
+    color: #cbd5e1;
+}
+
+.focus-depth input {
+    min-width: 90px;
+    accent-color: #14b8a6;
+}
+
+.focus-depth output {
+    color: #f8fafc;
+    font-size: 12px;
+    text-align: center;
+}
+
+.danger-button {
+    border-color: #ef4444;
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.danger-button:hover {
+    background: #991b1b;
+}
+
+.node-menu {
+    position: absolute;
+    z-index: 8;
+    display: grid;
+    width: 215px;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid #475569;
+    border-radius: 9px;
+    background: #111827f5;
+    box-shadow: 0 14px 35px #0008;
+}
+
+.node-menu strong {
+    overflow: hidden;
+    padding: 2px 4px 5px;
+    color: #f8fafc;
+    font:
+        12px Consolas,
+        monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.node-menu button {
+    justify-content: flex-start;
 }
 
 .sidebar {

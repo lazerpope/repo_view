@@ -24,6 +24,14 @@ export interface ConnectionVisualStyle {
     curve: ConnectionCurve
 }
 
+export interface NodeMenuState {
+    key: string
+    label: string
+    kind: 'folder' | 'file'
+    x: number
+    y: number
+}
+
 interface AppUIPreferences {
     sidebarOpen: boolean
     activeTab: SidebarTab
@@ -55,6 +63,7 @@ export const useAppUI = defineStore('appUI', () => {
     const saved = provider.load<Partial<AppUIPreferences>>(storageKey)
     const sidebarOpen = ref(saved?.sidebarOpen ?? false)
     const activeTab = ref<SidebarTab>(saved?.activeTab ?? 'styles')
+    const nodeMenu = ref<NodeMenuState | null>(null)
     const nodeStyles = reactive(cloneDefaults(defaultNodeStyles))
     const connectionStyles = reactive(cloneDefaults(defaultConnectionStyles))
 
@@ -79,6 +88,14 @@ export const useAppUI = defineStore('appUI', () => {
         }
     }
 
+    function openNodeMenu(menu: NodeMenuState) {
+        nodeMenu.value = menu
+    }
+
+    function closeNodeMenu() {
+        nodeMenu.value = null
+    }
+
     watch(
         () => ({
             sidebarOpen: sidebarOpen.value,
@@ -95,8 +112,11 @@ export const useAppUI = defineStore('appUI', () => {
         activeTab,
         nodeStyles,
         connectionStyles,
+        nodeMenu,
         openSidebar,
         closeSidebar,
+        openNodeMenu,
+        closeNodeMenu,
         resetStyles,
     }
 })
