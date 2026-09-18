@@ -10,9 +10,7 @@ import {
 import type {
     ConnectionCurve,
     ConnectionKind,
-    ConnectionVisualStyle,
     NodeKind,
-    NodeVisualStyle,
 } from './stores/appUI.ts'
 
 export const noExtensionKey = '(no extension)'
@@ -27,8 +25,6 @@ export function extensionOf(label: string, extension: string | null): string {
 export interface GraphOptions {
     basePath: string
     enabledExtensions: ReadonlySet<string>
-    nodeStyles: Record<NodeKind, NodeVisualStyle>
-    connectionStyles: Record<ConnectionKind, ConnectionVisualStyle>
 }
 
 export interface ProjectGraph {
@@ -42,6 +38,8 @@ export interface GraphViewOptions {
     focusedNodeKey: string | null
     focusDepth: number | null
 }
+
+export type ConnectionCurves = Record<ConnectionKind, ConnectionCurve>
 
 function parseImport(value: unknown): Import {
     if (typeof value === 'string') return { type: 'lib', label: value }
@@ -126,12 +124,6 @@ function edgeType(curve: ConnectionCurve): string {
     return curve === 'bezier' ? 'default' : curve
 }
 
-function dashArray(line: ConnectionVisualStyle['line']): string | undefined {
-    if (line === 'dashed') return '8 5'
-    if (line === 'dotted') return '2 5'
-    return undefined
-}
-
 function fileName(file: File): string {
     const extension = file.extension?.replace(/^\./, '')
     if (!extension || file.label.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
@@ -158,27 +150,20 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
     }
 
     const connect = (source: string, target: string, kind: ConnectionKind) => {
-        const style = options.connectionStyles[kind]
         edges.push({
             id: `edge-${edges.length}`,
             source,
             target,
-            type: edgeType(style.curve),
-            animated: style.animated,
+            data: { kind },
             markerStart:
                 kind === 'imports'
-                    ? { type: MarkerType.ArrowClosed, color: style.color }
+                    ? { type: MarkerType.ArrowClosed, color: 'var(--imports-edge-color)' }
                     : undefined,
             markerEnd:
                 kind !== 'imports'
-                    ? { type: MarkerType.ArrowClosed, color: style.color }
+                    ? { type: MarkerType.ArrowClosed, color: 'var(--contains-edge-color)' }
                     : undefined,
-            class: `project-edge ${kind}-edge ${style.line}-edge`,
-            style: {
-                stroke: style.color,
-                strokeWidth: 2,
-                strokeDasharray: dashArray(style.line),
-            },
+            class: `project-edge ${kind}-edge`,
         })
     }
 
@@ -190,18 +175,11 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
     ) => {
         const key = `${kind}:${path}`
         const id = `node-${encodeURIComponent(key)}`
-        const style = options.nodeStyles[kind]
         nodes.push({
             id,
             position,
             data: { label, kind, path, key },
             class: `project-node ${kind}-node`,
-            style: {
-                color: style.color,
-                backgroundColor: style.backgroundColor,
-                borderColor: style.color,
-                fontSize: `${style.fontSize}px`,
-            },
             sourcePosition: Position.Right,
             targetPosition: Position.Left,
         })
@@ -297,6 +275,19 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
     }
 
     return { nodes, edges }
+}
+
+export function applyConnectionCurves(
+    graph: ProjectGraph,
+    connectionCurves: ConnectionCurves,
+): ProjectGraph {
+    return {
+        nodes: graph.nodes,
+        edges: graph.edges.map((edge) => {
+            const kind = edge.data?.kind as ConnectionKind
+            return { ...edge, type: edgeType(connectionCurves[kind]) }
+        }),
+    }
 }
 
 export function applyGraphView(graph: ProjectGraph, options: GraphViewOptions): ProjectGraph {

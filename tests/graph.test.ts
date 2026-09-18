@@ -2,12 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Structure } from '../shared/types.ts'
 import {
+    applyConnectionCurves,
     applyGraphView,
     buildGraph,
     collectSubtreeNodeKeys,
     type GraphOptions,
 } from '../frontend/graph.ts'
-import { defaultConnectionStyles, defaultNodeStyles } from '../frontend/stores/appUI.ts'
+import { defaultConnectionStyles } from '../frontend/stores/appUI.ts'
 
 const structure: Structure = [
     {
@@ -42,8 +43,11 @@ const structure: Structure = [
 const options: GraphOptions = {
     basePath: '',
     enabledExtensions: new Set(['ts']),
-    nodeStyles: defaultNodeStyles,
-    connectionStyles: defaultConnectionStyles,
+}
+
+const connectionCurves = {
+    contains: defaultConnectionStyles.contains.curve,
+    imports: defaultConnectionStyles.imports.curve,
 }
 
 test('links project files by full folder path', () => {
@@ -97,6 +101,14 @@ test('lays out direct files beside their folder and nested folders below it', ()
     assert.ok(one.position.x > root.position.x)
     assert.ok(child.position.x > root.position.x)
     assert.ok(child.position.y > one.position.y)
+})
+
+test('applies connection curves without rebuilding nodes', () => {
+    const topology = buildGraph(structure, options)
+    const graph = applyConnectionCurves(topology, connectionCurves)
+
+    assert.equal(graph.nodes, topology.nodes)
+    assert.ok(graph.edges.every((edge) => edge.type === 'smoothstep'))
 })
 
 test('limits a focused graph by outgoing connection depth', () => {

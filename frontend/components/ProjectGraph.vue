@@ -16,7 +16,7 @@ import {
 import { Background } from '@vue-flow/background'
 import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { applyGraphView, buildGraph } from '../graph.ts'
+import { applyConnectionCurves, applyGraphView, buildGraph } from '../graph.ts'
 import { useAppData, type LibraryKind } from '../stores/appData.ts'
 import {
     connectionKinds,
@@ -33,26 +33,55 @@ const graphCanvas = ref<HTMLElement | null>(null)
 const nodeMenuElement = ref<HTMLElement | null>(null)
 const initialViewFitted = ref(false)
 
-const baseGraph = computed(() =>
+const topologyGraph = computed(() =>
     buildGraph(appData.visibleStructure, {
         basePath: appData.graphBasePath,
         enabledExtensions: appData.enabledExtensions,
-        nodeStyles: appUI.nodeStyles,
-        connectionStyles: appUI.connectionStyles,
     }),
 )
-const graph = computed(() =>
-    applyGraphView(baseGraph.value, {
+const graphView = computed(() =>
+    applyGraphView(topologyGraph.value, {
         hiddenNodeKeys: appData.hiddenNodeKeys,
         hiddenNodeKinds: appData.hiddenLibraryKinds,
         focusedNodeKey: appData.focusedNodeKey,
         focusDepth: appData.focusDepth,
     }),
 )
+const graph = computed(() =>
+    applyConnectionCurves(graphView.value, {
+        contains: appUI.connectionStyles.contains.curve,
+        imports: appUI.connectionStyles.imports.curve,
+    }),
+)
 const focusDepthStep = computed({
     get: () => appData.focusDepth ?? 7,
     set: (value: number) => appData.setFocusDepth(value === 7 ? null : value),
 })
+const graphVisualStyle = computed<Record<string, string>>(() => {
+    const variables: Record<string, string> = {}
+
+    for (const kind of nodeKinds) {
+        const style = appUI.nodeStyles[kind]
+        variables[`--${kind}-node-color`] = style.color
+        variables[`--${kind}-node-background`] = style.backgroundColor
+        variables[`--${kind}-node-font-size`] = `${style.fontSize}px`
+    }
+    for (const kind of connectionKinds) {
+        const style = appUI.connectionStyles[kind]
+        variables[`--${kind}-edge-color`] = style.color
+        variables[`--${kind}-edge-dasharray`] =
+            style.line === 'dashed' ? '8 5' : style.line === 'dotted' ? '2 5' : 'none'
+        variables[`--${kind}-edge-animation-dasharray`] =
+            style.line === 'dashed' ? '8 5' : style.line === 'dotted' ? '2 5' : '5'
+    }
+
+    return variables
+})
+const graphVisualClasses = computed(() =>
+    connectionKinds
+        .filter((kind) => appUI.connectionStyles[kind].animated)
+        .map((kind) => `${kind}-edges-animated`),
+)
 
 const nodeLabels: Record<NodeKind, string> = {
     folder: 'Folder',
@@ -168,6 +197,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
         <section
             ref="graphCanvas"
             class="graph-canvas"
+            :class="graphVisualClasses"
+            :style="graphVisualStyle"
             aria-label="Project structure graph"
             :aria-busy="appData.loading"
         >

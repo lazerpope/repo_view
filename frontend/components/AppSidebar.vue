@@ -19,7 +19,14 @@ import {
 } from '@tabler/icons-vue'
 import { computed, defineAsyncComponent, onBeforeUnmount } from 'vue'
 import { useAppData } from '../stores/appData.ts'
-import { connectionKinds, nodeKinds, useAppUI, type SidebarTab } from '../stores/appUI.ts'
+import {
+    connectionKinds,
+    nodeKinds,
+    useAppUI,
+    type ConnectionKind,
+    type NodeKind,
+    type SidebarTab,
+} from '../stores/appUI.ts'
 
 const appData = useAppData()
 const appUI = useAppUI()
@@ -43,6 +50,54 @@ const tabs: { id: SidebarTab; label: string; icon: typeof IconPalette }[] = [
     { id: 'styles', label: 'Styles', icon: IconPalette },
     { id: 'raw', label: 'JSON', icon: IconBraces },
 ]
+const pendingUpdates = new Map<string, () => void>()
+let updateFrame: number | null = null
+
+function applyScheduledUpdates() {
+    updateFrame = null
+    const updates = [...pendingUpdates.values()]
+    pendingUpdates.clear()
+    for (const update of updates) update()
+}
+
+function scheduleUpdate(key: string, update: () => void) {
+    pendingUpdates.set(key, update)
+    updateFrame ??= requestAnimationFrame(applyScheduledUpdates)
+}
+
+function flushScheduledUpdates() {
+    if (updateFrame !== null) cancelAnimationFrame(updateFrame)
+    if (pendingUpdates.size) applyScheduledUpdates()
+}
+
+function inputValue(event: Event): string {
+    return (event.currentTarget as HTMLInputElement).value
+}
+
+function updateConnectionColor(kind: ConnectionKind, event: Event) {
+    const value = inputValue(event)
+    scheduleUpdate(`connection:${kind}:color`, () => {
+        appUI.connectionStyles[kind].color = value
+    })
+}
+
+function updateNodeColor(
+    kind: NodeKind,
+    property: 'color' | 'backgroundColor',
+    event: Event,
+) {
+    const value = inputValue(event)
+    scheduleUpdate(`node:${kind}:${property}`, () => {
+        appUI.nodeStyles[kind][property] = value
+    })
+}
+
+function updateNodeFontSize(kind: NodeKind, event: Event) {
+    const value = Number(inputValue(event))
+    scheduleUpdate(`node:${kind}:fontSize`, () => {
+        appUI.nodeStyles[kind].fontSize = value
+    })
+}
 
 function saveRawData(value: unknown) {
     try {
@@ -54,10 +109,14 @@ function saveRawData(value: unknown) {
 
 function resizeSidebar(event: PointerEvent) {
     const maximum = Math.max(500, window.innerWidth * 0.8)
-    appUI.sidebarWidth = Math.max(500, Math.min(maximum, window.innerWidth - event.clientX))
+    const width = Math.max(500, Math.min(maximum, window.innerWidth - event.clientX))
+    scheduleUpdate('sidebarWidth', () => {
+        appUI.sidebarWidth = width
+    })
 }
 
 function stopResizing() {
+    flushScheduledUpdates()
     document.body.classList.remove('sidebar-resizing')
     document.removeEventListener('pointermove', resizeSidebar)
     document.removeEventListener('pointerup', stopResizing)
@@ -70,7 +129,10 @@ function startResizing(event: PointerEvent) {
     document.addEventListener('pointerup', stopResizing, { once: true })
 }
 
-onBeforeUnmount(stopResizing)
+onBeforeUnmount(() => {
+    stopResizing()
+    flushScheduledUpdates()
+})
 </script>
 
 <template>
@@ -111,7 +173,11 @@ onBeforeUnmount(stopResizing)
                     <legend>{{ connectionLabels[kind] }}</legend>
                     <label class="icon-field" title="Color">
                         <IconColorPicker :size="17" />
-                        <input v-model="appUI.connectionStyles[kind].color" type="color" />
+                        <input
+                            :value="appUI.connectionStyles[kind].color"
+                            type="color"
+                            @input="updateConnectionColor(kind, $event)"
+                        />
                     </label>
                     <div class="option-group" role="group" aria-label="Line style">
                         <button
@@ -209,20 +275,29 @@ onBeforeUnmount(stopResizing)
                     <div class="color-controls">
                         <label class="icon-field" title="Color">
                             <IconColorPicker :size="17" />
-                            <input v-model="appUI.nodeStyles[kind].color" type="color" />
+                            <input
+                                :value="appUI.nodeStyles[kind].color"
+                                type="color"
+                                @input="updateNodeColor(kind, 'color', $event)"
+                            />
                         </label>
                         <label class="icon-field" title="Background">
                             <IconBackground :size="17" />
-                            <input v-model="appUI.nodeStyles[kind].backgroundColor" type="color" />
+                            <input
+                                :value="appUI.nodeStyles[kind].backgroundColor"
+                                type="color"
+                                @input="updateNodeColor(kind, 'backgroundColor', $event)"
+                            />
                         </label>
                     </div>
                     <label class="icon-field range-field" title="Font size">
                         <IconTypography :size="17" />
                         <input
-                            v-model.number="appUI.nodeStyles[kind].fontSize"
+                            :value="appUI.nodeStyles[kind].fontSize"
                             type="range"
                             min="10"
                             max="24"
+                            @input="updateNodeFontSize(kind, $event)"
                         />
                         <output>{{ appUI.nodeStyles[kind].fontSize }}</output>
                     </label>

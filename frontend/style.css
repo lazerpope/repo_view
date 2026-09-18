@@ -142,8 +142,41 @@ h2 {
     padding: 14px 18px;
     border: 1px solid currentcolor;
     border-radius: 9px;
+    background-color: var(--node-background, transparent);
+    color: var(--node-color, currentcolor);
+    font-size: var(--node-font-size, 14px);
     text-align: left;
     box-shadow: 0 8px 20px #0004;
+}
+
+.vue-flow__node.folder-node {
+    --node-color: var(--folder-node-color);
+    --node-background: var(--folder-node-background);
+    --node-font-size: var(--folder-node-font-size);
+}
+
+.vue-flow__node.file-node {
+    --node-color: var(--file-node-color);
+    --node-background: var(--file-node-background);
+    --node-font-size: var(--file-node-font-size);
+}
+
+.vue-flow__node.lib-node {
+    --node-color: var(--lib-node-color);
+    --node-background: var(--lib-node-background);
+    --node-font-size: var(--lib-node-font-size);
+}
+
+.vue-flow__node.lib-external-node {
+    --node-color: var(--lib-external-node-color);
+    --node-background: var(--lib-external-node-background);
+    --node-font-size: var(--lib-external-node-font-size);
+}
+
+.vue-flow__node.lib-builtin-node {
+    --node-color: var(--lib-builtin-node-color);
+    --node-background: var(--lib-builtin-node-background);
+    --node-font-size: var(--lib-builtin-node-font-size);
 }
 
 .node-kind {
@@ -169,8 +202,28 @@ h2 {
     background: currentcolor;
 }
 
-.vue-flow__edge.animated path {
-    animation-duration: 0.65s;
+.vue-flow__edge.contains-edge {
+    --edge-color: var(--contains-edge-color);
+    --edge-dasharray: var(--contains-edge-dasharray);
+    --edge-animation-dasharray: var(--contains-edge-animation-dasharray);
+}
+
+.vue-flow__edge.imports-edge {
+    --edge-color: var(--imports-edge-color);
+    --edge-dasharray: var(--imports-edge-dasharray);
+    --edge-animation-dasharray: var(--imports-edge-animation-dasharray);
+}
+
+.vue-flow__edge.project-edge .vue-flow__edge-path {
+    stroke: var(--edge-color, #64748b);
+    stroke-width: 2px;
+    stroke-dasharray: var(--edge-dasharray, none);
+}
+
+.graph-canvas.contains-edges-animated .vue-flow__edge.contains-edge .vue-flow__edge-path,
+.graph-canvas.imports-edges-animated .vue-flow__edge.imports-edge .vue-flow__edge-path {
+    stroke-dasharray: var(--edge-animation-dasharray, 5);
+    animation: graph-edge-flow 0.65s linear infinite;
 }
 
 .notice {
@@ -578,8 +631,15 @@ h2 {
     }
 }
 
+@keyframes graph-edge-flow {
+    to {
+        stroke-dashoffset: -13;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .animation-control.moving svg {
+    .animation-control.moving svg,
+    .vue-flow__edge.project-edge .vue-flow__edge-path {
         animation: none;
     }
 }
