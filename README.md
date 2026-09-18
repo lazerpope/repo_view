@@ -1,6 +1,6 @@
 # Project graph viewer
 
-A small Vue app that fetches a nested project structure from `GET /data` and renders folders, files, containment, and import relationships with Vue Flow.
+A small Vue app that fetches a nested project structure from `GET /data/graph` and renders folders, files, containment, and import relationships with Vue Flow.
 
 ## Run locally
 

@@ -1,19 +1,21 @@
-import { Router } from "express";
+import { Router } from "express"
 import type { Structure } from '../../../shared/types.ts'
 
-const router = Router();
+const router = Router()
 
 
 router.get("/graph", (req, res) => {
     try {
-        res.json(JSON.stringify(data));
-        
-    } catch (error) {
-        res.send('err')
-    }
-});
+        res.json(data)
 
-export default router;
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+        })
+    }
+})
+
+export default router
 
 
 

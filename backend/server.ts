@@ -1,20 +1,15 @@
+import express from 'express'
+import { port } from './config.ts'
+import routeGraph from './routes/graph/serve.ts'
+import routeUser from './routes/user/serve.ts'
 
+const app = express()
 
-const PORT = Number(process.env.PORT || 3000)
+app.use(express.json())
 
-import express from "express";
+app.use('/data', routeGraph)
+app.use('/user', routeUser)
 
-import route_graph from "./routes/graph/serve.ts";
-import route_user from "./routes/user/serve.ts";
-
-const app = express();
-
-app.use(express.json());
-
-app.use("/data", route_graph);
-app.use("/user", route_user);
-
-app.listen(PORT, () => {
-  console.log(`Listening on http://localhost:${PORT}`);
-});
-
+app.listen(port, () => {
+    console.log(`Listening on http://localhost:${port}`)
+})

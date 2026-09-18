@@ -96,7 +96,7 @@ export const useAppData = defineStore('appData', () => {
         error.value = ''
 
         try {
-            const response = await fetch('/data', { signal: AbortSignal.timeout(10_000) })
+            const response = await fetch('/data/graph', { signal: AbortSignal.timeout(10_000) })
             if (!response.ok) throw new Error(`Server returned HTTP ${response.status}.`)
             setData(await response.json())
         } catch (cause) {
