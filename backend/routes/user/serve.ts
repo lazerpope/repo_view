@@ -4,7 +4,7 @@ import { Router } from 'express'
 import { workDirectory } from '../../config.ts'
 
 const router = Router()
-const preferencesFile = join(workDirectory, 'prefs')
+const preferencesFile = join(workDirectory, 'prefs.json')
 let pendingWrite = Promise.resolve()
 
 type Preferences = Record<string, unknown>
