@@ -10,6 +10,7 @@ import {
     IconRefresh,
     IconRoute,
     IconX,
+    IconMenu2,
     IconZoomIn,
     IconZoomOut,
 } from '@tabler/icons-vue'
@@ -162,7 +163,7 @@ onNodesInitialized(() => {
 })
 onMounted(() => {
     document.addEventListener('pointerdown', closeMenuFromOutside)
-    if (!appData.rawData.length) void appData.loadData()
+    if (!appData.rawData.length) void appData.loadData('fullstack-test-task')
 })
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromOutside))
 </script>
@@ -171,8 +172,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
     <main class="graph-page">
         <header class="toolbar">
             <div>
-                <h1>Project graph <IconAdjustments :size="20"  /></h1>
-                
+                <span style="font-size: 1.5rem">Project graph </span>
+                <IconMenu-2 :size="20" style="transform: translate(0, 4px)" />
             </div>
             <div class="toolbar-actions">
                 <button

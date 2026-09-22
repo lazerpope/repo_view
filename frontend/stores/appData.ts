@@ -91,12 +91,12 @@ export const useAppData = defineStore('appData', () => {
         if (selectedFolderPath.value && !selectedFolder.value) selectedFolderPath.value = null
     }
 
-    async function loadData() {
+    async function loadData(repo: string) {
         loading.value = true
         error.value = ''
-
+        const params = new URLSearchParams({ repo })
         try {
-            const response = await fetch('/data/graph', { signal: AbortSignal.timeout(10_000) })
+            const response = await fetch(`/data/graph?${params}`, { signal: AbortSignal.timeout(10_000) })
             if (!response.ok) throw new Error(`Server returned HTTP ${response.status}.`)
             setData(await response.json())
         } catch (cause) {

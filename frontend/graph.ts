@@ -7,11 +7,7 @@ import {
     type ImportType,
     type Structure,
 } from '../shared/types.ts'
-import type {
-    ConnectionCurve,
-    ConnectionKind,
-    NodeKind,
-} from './stores/appUI.ts'
+import type { ConnectionCurve, ConnectionKind, NodeKind } from './stores/appUI.ts'
 
 export const noExtensionKey = '(no extension)'
 

@@ -1,7 +1,8 @@
-import * as monaco from '../../node_modules/monaco-editor/esm/vs/editor/editor.api.js'
-import '../../node_modules/monaco-editor/esm/vs/language/json/monaco.contribution.js'
-import EditorWorker from '../../node_modules/monaco-editor/esm/vs/editor/editor.worker.js?worker'
-import JsonWorker from '../../node_modules/monaco-editor/esm/vs/language/json/json.worker.js?worker'
+import * as monaco from 'monaco-editor/editor'
+import 'monaco-editor/features/register.all'
+import 'monaco-editor/languages/features/json/register'
+import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
+import JsonWorker from 'monaco-editor/languages/features/json/json.worker?worker'
 
 interface MonacoWorkerHost {
     MonacoEnvironment: {

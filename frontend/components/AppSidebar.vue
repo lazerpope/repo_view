@@ -81,11 +81,7 @@ function updateConnectionColor(kind: ConnectionKind, event: Event) {
     })
 }
 
-function updateNodeColor(
-    kind: NodeKind,
-    property: 'color' | 'backgroundColor',
-    event: Event,
-) {
+function updateNodeColor(kind: NodeKind, property: 'color' | 'backgroundColor', event: Event) {
     const value = inputValue(event)
     scheduleUpdate(`node:${kind}:${property}`, () => {
         appUI.nodeStyles[kind][property] = value

@@ -55,14 +55,6 @@ export default defineConfig([
             '@stylistic/indent': ['error', 4, { SwitchCase: 1 }],
             '@stylistic/no-tabs': 'error',
             '@stylistic/semi': ['error', 'never'],
-            '@stylistic/max-len': [
-                'error',
-                {
-                    code: 100,
-                    ignoreUrls: true,
-                    ignoreRegExpLiterals: true,
-                },
-            ],
         },
     },
 ])
