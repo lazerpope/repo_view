@@ -231,6 +231,48 @@ h2 {
     background: #172033;
 }
 
+.repository-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 46px;
+    gap: 8px;
+    border-radius: 8px;
+    transition:
+        background-color 140ms ease,
+        opacity 140ms ease;
+}
+
+.repository-row.deleting {
+    background: #3f1820;
+    opacity: 0.7;
+}
+
+.repository-row.deleting .repository-choice {
+    border-color: #7f1d1d;
+    background: #35171e;
+    color: #fca5a5;
+}
+
+.repository-delete-button {
+    display: grid;
+    min-width: 46px;
+    padding: 0;
+    place-items: center;
+    border-color: #4b2631;
+    background: #271823;
+    color: #f87171;
+}
+
+.repository-delete-button:hover:not(:disabled) {
+    border-color: #ef4444;
+    background: #3f1820;
+    color: #fecaca;
+}
+
+.repository-delete-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
 .repository-choice.selected {
     border-color: #14b8a6;
     background: #123135;
@@ -254,6 +296,11 @@ h2 {
 
 .repository-list-status p {
     margin-bottom: 12px;
+}
+
+.repository-delete-error {
+    margin: 4px 0 0;
+    font-size: 12px;
 }
 
 .error-text {

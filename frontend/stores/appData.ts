@@ -181,6 +181,15 @@ export const useAppData = defineStore('appData', () => {
         viewports.value = { ...viewports.value, [repository]: viewport }
     }
 
+    function removeRepositoryState(repository: string) {
+        const nextPositions = { ...nodePositions.value }
+        const nextViewports = { ...viewports.value }
+        delete nextPositions[repository]
+        delete nextViewports[repository]
+        nodePositions.value = nextPositions
+        viewports.value = nextViewports
+    }
+
     function savePreferences() {
         return provider.store<AppDataPreferences>(storageKey, {
             selectedFolderPath: selectedFolderPath.value,
@@ -226,6 +235,7 @@ export const useAppData = defineStore('appData', () => {
         setFocusDepth,
         setNodePosition,
         setViewport,
+        removeRepositoryState,
         savePreferences,
     }
 })

@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { workDirectory } from '../../config.ts'
 import { join } from 'node:path'
 import { downloadRepository } from './download.ts'
-import { getFolders } from './files.ts'
+import { deleteRepository, getFolders } from './files.ts'
 import { startJob, streamJob } from './jobs.ts'
 import { parseRepository } from './parser.ts'
 
@@ -79,6 +79,25 @@ router.post('/repositories/download', (req, res) => {
 
     const id = startJob((report) => downloadRepository(url, ref, report))
     res.status(202).json({ jobId: id })
+})
+
+router.delete('/repositories/:repository', async (req, res) => {
+    const repository = req.params.repository
+    if (!repository?.trim()) {
+        res.status(400).json({ error: 'A repository name is required.' })
+        return
+    }
+
+    try {
+        if (!(await deleteRepository(workDirectory, repository))) {
+            res.status(404).json({ error: 'Repository not found.' })
+            return
+        }
+        res.status(204).end()
+    } catch (error) {
+        console.error('Failed to delete repository:', error)
+        res.status(500).json({ error: 'Could not delete the repository.' })
+    }
 })
 
 router.get('/jobs/:id/events', (req, res) => {

@@ -15,6 +15,7 @@ import {
     IconFocusCentered,
     IconRefresh,
     IconRoute,
+    IconTrash,
     IconX,
     IconMenu2,
     IconZoomIn,
@@ -51,6 +52,8 @@ const repositoryModalOpen = ref(!appUI.currentRepository)
 const repositories = ref<string[]>([])
 const repositoriesLoading = ref(false)
 const repositoriesError = ref('')
+const repositoryDeleteError = ref('')
+const deletingRepository = ref<string | null>(null)
 const repositoryLink = ref('')
 const repositoryRef = ref('')
 const repositoryLinkChecked = ref(false)
@@ -310,6 +313,39 @@ async function selectRepository(repository: string) {
     appUI.currentRepository = repository
     repositoryModalOpen.value = false
     await loadCurrentRepository()
+}
+
+async function deleteSelectedRepository(repository: string) {
+    const confirmed = window.confirm(
+        `Delete "${repository}" and its entire local folder? This cannot be undone.`,
+    )
+    if (!confirmed) return
+
+    deletingRepository.value = repository
+    repositoryDeleteError.value = ''
+    try {
+        const response = await fetch(`/data/repositories/${encodeURIComponent(repository)}`, {
+            method: 'DELETE',
+            signal: AbortSignal.timeout(30_000),
+        })
+        if (!response.ok) {
+            const result = (await response.json().catch(() => null)) as { error?: string } | null
+            throw new Error(result?.error ?? `Server returned HTTP ${response.status}.`)
+        }
+
+        repositories.value = repositories.value.filter((value) => value !== repository)
+        appData.removeRepositoryState(repository)
+        if (appUI.currentRepository === repository) {
+            appUI.currentRepository = null
+            appData.setData([])
+            repositoryModalOpen.value = true
+        }
+    } catch (cause) {
+        repositoryDeleteError.value =
+            cause instanceof Error ? cause.message : 'Could not delete the repository.'
+    } finally {
+        deletingRepository.value = null
+    }
 }
 
 function openRepositoryModal() {
@@ -732,18 +768,42 @@ onBeforeUnmount(() => {
                         No repositories were found.
                     </p>
                     <template v-else>
-                        <button
+                        <div
                             v-for="repository in repositories"
                             :key="repository"
-                            type="button"
-                            class="repository-choice"
-                            :class="{ selected: repository === appUI.currentRepository }"
-                            @click="selectRepository(repository)"
+                            class="repository-row"
+                            :class="{ deleting: deletingRepository === repository }"
                         >
-                            <IconFolder :size="19" />
-                            <span>{{ repository }}</span>
-                        </button>
+                            <button
+                                type="button"
+                                class="repository-choice"
+                                :class="{ selected: repository === appUI.currentRepository }"
+                                :disabled="deletingRepository === repository"
+                                @click="selectRepository(repository)"
+                            >
+                                <IconFolder :size="19" />
+                                <span>{{ repository }}</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="repository-delete-button"
+                                :disabled="deletingRepository !== null || jobRunning"
+                                :title="`Delete ${repository}`"
+                                :aria-label="`Delete ${repository}`"
+                                @click="deleteSelectedRepository(repository)"
+                            >
+                                <IconRefresh
+                                    v-if="deletingRepository === repository"
+                                    :size="18"
+                                    class="spinning"
+                                />
+                                <IconTrash v-else :size="18" />
+                            </button>
+                        </div>
                     </template>
+                    <p v-if="repositoryDeleteError" class="repository-delete-error error-text">
+                        {{ repositoryDeleteError }}
+                    </p>
                 </div>
 
                 <div class="repository-divider"><span>or download a repository</span></div>
