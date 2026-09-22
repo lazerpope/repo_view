@@ -1,15 +1,10 @@
 import { Router } from 'express'
-import { readFile } from 'node:fs/promises'
 import { workDirectory } from '../../config.ts'
 import { join } from 'node:path'
 import { getFolders } from './files.ts'
+import { parseRepository } from './parser.ts'
 
 const router = Router()
-
-async function readGraph(repository: string) {
-    const graphFile = join(workDirectory, repository, 'graph.json')
-    return readFile(graphFile, 'utf8')
-}
 
 router.get('/graph', async (req, res) => {
     const repository = req.query.repo
@@ -25,10 +20,10 @@ router.get('/graph', async (req, res) => {
             return
         }
 
-        res.type('application/json').send(await readGraph(repository))
+        res.json(await parseRepository(join(workDirectory, repository)))
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            res.status(404).json({ error: 'Graph data not found for this repository.' })
+            res.status(404).json({ error: 'Repository files not found.' })
             return
         }
 
