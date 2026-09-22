@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { inject, onScopeDispose, reactive, ref, watch } from 'vue'
+import { inject, onScopeDispose, reactive, ref, watch, type Ref } from 'vue'
 import { memoryPreferencesProvider, preferencesProviderKey } from '../providers/preferences.ts'
 
 export const nodeKinds = ['folder', 'file', 'lib', 'lib-external', 'lib-builtin'] as const
@@ -70,6 +70,7 @@ export const useAppUI = defineStore('appUI', () => {
     const nodeMenu = ref<NodeMenuState | null>(null)
     const nodeStyles = reactive(cloneDefaults(defaultNodeStyles))
     const connectionStyles = reactive(cloneDefaults(defaultConnectionStyles))
+    const currentRepository = ref<string|null>(null)
 
     for (const kind of nodeKinds) Object.assign(nodeStyles[kind], saved?.nodeStyles?.[kind])
     for (const kind of connectionKinds) {
