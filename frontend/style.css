@@ -306,6 +306,24 @@ h2 {
     color: #e2e8f0;
 }
 
+.repository-ref-input {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 11px;
+    border: 1px solid #475569;
+    border-radius: 7px;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+.repository-link-control input:disabled,
+.repository-ref-input:disabled {
+    border-color: #293548;
+    background: #1e293b;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
 .repository-link-control input[aria-invalid='true'] {
     border-color: #ef4444;
 }
@@ -314,6 +332,79 @@ h2 {
     margin: 0;
     color: #5eead4;
     font-size: 12px;
+}
+
+.repository-job {
+    display: grid;
+    gap: 6px;
+    margin-top: 5px;
+    padding: 11px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    font-size: 12px;
+}
+
+.repository-job-stage {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: center;
+    min-height: 29px;
+    gap: 9px;
+    padding: 4px 7px;
+    border-radius: 6px;
+    color: #64748b;
+}
+
+.repository-job-stage.is-active {
+    background: #172554;
+    color: #dbeafe;
+}
+
+.repository-job-stage.is-done {
+    color: #99f6e4;
+}
+
+.repository-job-stage.is-error {
+    background: #3f1820;
+    color: #fecaca;
+}
+
+.repository-job-stage-number {
+    color: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.repository-job-stage-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 20px;
+    font-variant-numeric: tabular-nums;
+}
+
+.repository-job > p {
+    margin: 5px 7px 0;
+}
+
+.repository-job progress,
+.job-notice progress {
+    width: 100%;
+    accent-color: #14b8a6;
+}
+
+.job-notice {
+    display: grid;
+    width: min(360px, 90%);
+    gap: 10px;
+}
+
+.job-notice p {
+    margin: 0;
 }
 
 .graph-canvas {

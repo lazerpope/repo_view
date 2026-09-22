@@ -1,7 +1,7 @@
 import type { InjectionKey } from 'vue'
 
 export interface PreferencesProvider {
-    store<T>(key: string, value: T): void
+    store<T>(key: string, value: T): Promise<void>
     load<T>(key: string): T | null
 }
 
@@ -30,7 +30,7 @@ export async function createApiPreferencesProvider(
 ): Promise<PreferencesProvider> {
     let preferences: Record<string, unknown> = {}
     let pendingSnapshot: string | null = null
-    let storing = false
+    let storingPromise: Promise<void> | null = null
 
     try {
         const response = await fetch(endpoint, { signal: AbortSignal.timeout(10_000) })
@@ -45,33 +45,27 @@ export async function createApiPreferencesProvider(
         // console.error('Failed to load user preferences:', error)
     }
 
-    async function storePendingPreferences() {
-        if (storing) return
-        storing = true
+    function storePendingPreferences(): Promise<void> {
+        if (storingPromise) return storingPromise
 
-        try {
-            while (pendingSnapshot !== null) {
-                const snapshot = pendingSnapshot
-                pendingSnapshot = null
-
-                try {
+        storingPromise = (async () => {
+            try {
+                while (pendingSnapshot !== null) {
+                    const snapshot = pendingSnapshot
+                    pendingSnapshot = null
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: snapshot,
                         signal: AbortSignal.timeout(10_000),
                     })
-                    if (!response.ok) {
-                        throw new Error(`Server returned HTTP ${response.status}.`)
-                    }
-                } catch (error) {
-                    console.error('Failed to save user preferences:', error)
+                    if (!response.ok) throw new Error(`Server returned HTTP ${response.status}.`)
                 }
+            } finally {
+                storingPromise = null
             }
-        } finally {
-            storing = false
-            if (pendingSnapshot !== null) void storePendingPreferences()
-        }
+        })()
+        return storingPromise
     }
 
     return {
@@ -79,7 +73,7 @@ export async function createApiPreferencesProvider(
             const snapshot = JSON.stringify({ ...preferences, [key]: value })
             preferences = JSON.parse(snapshot) as Record<string, unknown>
             pendingSnapshot = snapshot
-            void storePendingPreferences()
+            return storePendingPreferences()
         },
         load<T>(key: string) {
             return (preferences[key] as T | undefined) ?? null
@@ -88,7 +82,7 @@ export async function createApiPreferencesProvider(
 }
 
 export const memoryPreferencesProvider: PreferencesProvider = {
-    store() {},
+    async store() {},
     load() {
         return null
     },

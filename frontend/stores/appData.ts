@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, ref } from 'vue'
 import type { Folder, Structure } from '../../shared/types.ts'
 import { collectSubtreeNodeKeys, extensionOf, parseStructure } from '../graph.ts'
 import { memoryPreferencesProvider, preferencesProviderKey } from '../providers/preferences.ts'
@@ -24,6 +24,8 @@ interface AppDataPreferences {
     focusedNodeKey: string | null
     focusDepth: number | null
     focusMode: FocusMode
+    nodePositions: Record<string, Record<string, { x: number; y: number }>>
+    viewports: Record<string, { x: number; y: number; zoom: number }>
 }
 
 const storageKey = 'repo-view:data-preferences'
@@ -78,6 +80,12 @@ export const useAppData = defineStore('appData', () => {
         saved?.focusMode === 'importers' || saved?.focusMode === 'imports'
             ? saved.focusMode
             : 'connected',
+    )
+    const nodePositions = ref<Record<string, Record<string, { x: number; y: number }>>>(
+        saved?.nodePositions && typeof saved.nodePositions === 'object' ? saved.nodePositions : {},
+    )
+    const viewports = ref<Record<string, { x: number; y: number; zoom: number }>>(
+        saved?.viewports && typeof saved.viewports === 'object' ? saved.viewports : {},
     )
 
     const folders = computed(() => listFolders(rawData.value))
@@ -161,34 +169,31 @@ export const useAppData = defineStore('appData', () => {
     function setFocusDepth(depth: number | null) {
         focusDepth.value = depth
     }
-    let storeTimeout: ReturnType<typeof setTimeout>
-    watch(
-        [
-            selectedFolderPath,
-            hiddenExtensions,
-            hiddenNodeKeys,
-            hiddenLibraryKinds,
-            focusedNodeKey,
-            focusDepth,
-            focusMode,
-        ],
-        () => {
-            clearTimeout(storeTimeout)
 
-            storeTimeout = setTimeout(() => {
-                provider.store<AppDataPreferences>(storageKey, {
-                    selectedFolderPath: selectedFolderPath.value,
-                    hiddenExtensions: hiddenExtensions.value,
-                    hiddenNodeKeys: hiddenNodeKeys.value,
-                    hiddenLibraryKinds: hiddenLibraryKinds.value,
-                    focusedNodeKey: focusedNodeKey.value,
-                    focusDepth: focusDepth.value,
-                    focusMode: focusMode.value,
-                })
-            }, 200)
-        },
-        { deep: true },
-    )
+    function setNodePosition(repository: string, key: string, position: { x: number; y: number }) {
+        nodePositions.value = {
+            ...nodePositions.value,
+            [repository]: { ...nodePositions.value[repository], [key]: position },
+        }
+    }
+
+    function setViewport(repository: string, viewport: { x: number; y: number; zoom: number }) {
+        viewports.value = { ...viewports.value, [repository]: viewport }
+    }
+
+    function savePreferences() {
+        return provider.store<AppDataPreferences>(storageKey, {
+            selectedFolderPath: selectedFolderPath.value,
+            hiddenExtensions: hiddenExtensions.value,
+            hiddenNodeKeys: hiddenNodeKeys.value,
+            hiddenLibraryKinds: hiddenLibraryKinds.value,
+            focusedNodeKey: focusedNodeKey.value,
+            focusDepth: focusDepth.value,
+            focusMode: focusMode.value,
+            nodePositions: nodePositions.value,
+            viewports: viewports.value,
+        })
+    }
 
     return {
         rawData,
@@ -201,6 +206,8 @@ export const useAppData = defineStore('appData', () => {
         focusedNodeKey,
         focusDepth,
         focusMode,
+        nodePositions,
+        viewports,
         folders,
         selectedFolder,
         visibleStructure,
@@ -217,5 +224,8 @@ export const useAppData = defineStore('appData', () => {
         focusNode,
         clearFocus,
         setFocusDepth,
+        setNodePosition,
+        setViewport,
+        savePreferences,
     }
 })

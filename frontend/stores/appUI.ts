@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { inject, onScopeDispose, reactive, ref, watch, type Ref } from 'vue'
+import { inject, reactive, ref } from 'vue'
 import { memoryPreferencesProvider, preferencesProviderKey } from '../providers/preferences.ts'
 
 export const nodeKinds = ['folder', 'file', 'lib', 'lib-external', 'lib-builtin'] as const
@@ -121,9 +121,8 @@ export const useAppUI = defineStore('appUI', () => {
         nodeMenu.value = null
     }
 
-    let storeTimeout: ReturnType<typeof setTimeout>
-    watch(
-        () => ({
+    function savePreferences() {
+        return provider.store<AppUIPreferences>(storageKey, {
             currentRepository: currentRepository.value,
             sidebarOpen: sidebarOpen.value,
             sidebarWidth: sidebarWidth.value,
@@ -131,14 +130,8 @@ export const useAppUI = defineStore('appUI', () => {
             jsonFontSize: jsonFontSize.value,
             nodeStyles,
             connectionStyles,
-        }),
-        (preferences) => {
-            clearTimeout(storeTimeout)
-            storeTimeout = setTimeout(() => provider.store(storageKey, preferences), 250)
-        },
-        { deep: true },
-    )
-    onScopeDispose(() => clearTimeout(storeTimeout))
+        })
+    }
 
     return {
         sidebarOpen,
@@ -154,5 +147,6 @@ export const useAppUI = defineStore('appUI', () => {
         openNodeMenu,
         closeNodeMenu,
         resetStyles,
+        savePreferences,
     }
 })

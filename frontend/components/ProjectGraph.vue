@@ -5,6 +5,8 @@ import {
     IconArrowForwardUp,
     IconArrowsExchange,
     IconBox,
+    IconCheck,
+    IconDeviceFloppy,
     IconDownload,
     IconEye,
     IconEyeOff,
@@ -19,7 +21,13 @@ import {
     IconZoomOut,
 } from '@tabler/icons-vue'
 import { Background } from '@vue-flow/background'
-import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
+import {
+    VueFlow,
+    useVueFlow,
+    type NodeDragEvent,
+    type NodeMouseEvent,
+    type ViewportTransform,
+} from '@vue-flow/core'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { applyConnectionCurves, applyGraphView, buildGraph } from '../graph.ts'
 import { useAppData, type LibraryKind } from '../stores/appData.ts'
@@ -35,7 +43,7 @@ import DirectionalStraightEdge from './DirectionalStraightEdge.vue'
 
 const appData = useAppData()
 const appUI = useAppUI()
-const { fitView, onNodesInitialized } = useVueFlow()
+const { fitView, onNodesInitialized, setViewport } = useVueFlow()
 const graphCanvas = ref<HTMLElement | null>(null)
 const nodeMenuElement = ref<HTMLElement | null>(null)
 const initialViewFitted = ref(false)
@@ -44,7 +52,67 @@ const repositories = ref<string[]>([])
 const repositoriesLoading = ref(false)
 const repositoriesError = ref('')
 const repositoryLink = ref('')
+const repositoryRef = ref('')
 const repositoryLinkChecked = ref(false)
+const activeJob = ref<JobState | null>(null)
+const activeJobKind = ref<'download' | 'rebuild' | null>(null)
+const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
+let jobEvents: EventSource | null = null
+
+interface JobState {
+    id: string
+    phase:
+        | 'queued'
+        | 'resolving'
+        | 'downloading'
+        | 'extracting'
+        | 'parsing'
+        | 'saving'
+        | 'complete'
+        | 'error'
+    message: string
+    percent?: number
+    repository?: string
+}
+
+type JobProgressPhase = Exclude<JobState['phase'], 'queued' | 'complete' | 'error'>
+type JobStageStatus = 'pending' | 'active' | 'done' | 'error'
+
+const repositoryJobStages: ReadonlyArray<{ phase: JobProgressPhase; label: string }> = [
+    { phase: 'resolving', label: 'Resolve' },
+    { phase: 'downloading', label: 'Download' },
+    { phase: 'extracting', label: 'Extract' },
+    { phase: 'parsing', label: 'Parse' },
+    { phase: 'saving', label: 'Save' },
+]
+const lastJobProgressPhase = ref<JobProgressPhase | null>(null)
+
+const jobRunning = computed(
+    () => activeJob.value !== null && !['complete', 'error'].includes(activeJob.value.phase),
+)
+
+function isJobProgressPhase(phase: JobState['phase']): phase is JobProgressPhase {
+    return repositoryJobStages.some((stage) => stage.phase === phase)
+}
+
+function repositoryJobStageStatus(phase: JobProgressPhase): JobStageStatus {
+    const job = activeJob.value
+    if (!job) return 'pending'
+    if (job.phase === 'complete') return 'done'
+
+    const currentPhase = isJobProgressPhase(job.phase) ? job.phase : lastJobProgressPhase.value
+    if (!currentPhase) return job.phase === 'error' ? 'error' : 'pending'
+
+    const currentIndex = repositoryJobStages.findIndex((stage) => stage.phase === currentPhase)
+    const stageIndex = repositoryJobStages.findIndex((stage) => stage.phase === phase)
+    if (stageIndex < currentIndex) return 'done'
+    if (stageIndex > currentIndex) return 'pending'
+    return job.phase === 'error' ? 'error' : 'active'
+}
+
+function repositoryJobStagePercent(phase: JobProgressPhase): number | undefined {
+    return activeJob.value?.phase === phase ? activeJob.value.percent : undefined
+}
 
 const repositoryLinkIsValid = computed(() => {
     const value = repositoryLink.value.trim()
@@ -52,18 +120,31 @@ const repositoryLinkIsValid = computed(() => {
 
     try {
         const url = new URL(value)
-        return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname)
+        return (
+            url.protocol === 'https:' &&
+            (url.hostname === 'github.com' || url.hostname === 'gitlab.com')
+        )
     } catch {
         return false
     }
 })
 
-const topologyGraph = computed(() =>
-    buildGraph(appData.visibleStructure, {
+const topologyGraph = computed(() => {
+    const topology = buildGraph(appData.visibleStructure, {
         basePath: appData.graphBasePath,
         enabledExtensions: appData.enabledExtensions,
-    }),
-)
+    })
+    const positions = appUI.currentRepository
+        ? (appData.nodePositions[appUI.currentRepository] ?? {})
+        : {}
+    return {
+        ...topology,
+        nodes: topology.nodes.map((node) => {
+            const position = positions[String(node.data.key)]
+            return position ? { ...node, position } : node
+        }),
+    }
+})
 const graphView = computed(() =>
     applyGraphView(topologyGraph.value, {
         hiddenNodeKeys: appData.hiddenNodeKeys,
@@ -159,6 +240,44 @@ function fitGraph() {
     void fitView({ padding: 0.18, maxZoom: 1 })
 }
 
+async function startRemoteJob(endpoint: string, body: Record<string, unknown>): Promise<JobState> {
+    jobEvents?.close()
+    lastJobProgressPhase.value = 'resolving'
+    activeJob.value = { id: '', phase: 'queued', message: 'Starting job' }
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
+    })
+    const result = (await response.json()) as { jobId?: string; error?: string }
+    if (!response.ok || !result.jobId) throw new Error(result.error ?? `HTTP ${response.status}`)
+
+    return new Promise((resolveJob, rejectJob) => {
+        const events = new EventSource(`/data/jobs/${encodeURIComponent(result.jobId!)}/events`)
+        jobEvents = events
+        events.onmessage = (event) => {
+            const state = JSON.parse(event.data) as JobState
+            activeJob.value = state
+            if (isJobProgressPhase(state.phase)) lastJobProgressPhase.value = state.phase
+            if (state.phase === 'complete') {
+                events.close()
+                jobEvents = null
+                resolveJob(state)
+            } else if (state.phase === 'error') {
+                events.close()
+                jobEvents = null
+                rejectJob(new Error(state.message))
+            }
+        }
+        events.onerror = () => {
+            events.close()
+            jobEvents = null
+            rejectJob(new Error('Lost connection to the repository job.'))
+        }
+    })
+}
+
 async function loadRepositories() {
     repositoriesLoading.value = true
     repositoriesError.value = ''
@@ -198,13 +317,74 @@ function openRepositoryModal() {
     void loadRepositories()
 }
 
-function submitRepositoryLink() {
+async function submitRepositoryLink() {
     repositoryLinkChecked.value = true
-    if (repositoryLinkIsValid.value) {
-        console.log('Repository link is valid:', repositoryLink.value.trim())
-    } else {
-        console.log('Repository link is not valid:', repositoryLink.value)
+    if (!repositoryLinkIsValid.value) return
+
+    try {
+        activeJobKind.value = 'download'
+        const result = await startRemoteJob('/data/repositories/download', {
+            url: repositoryLink.value.trim(),
+            ref: repositoryRef.value.trim() || undefined,
+        })
+        if (!result.repository) throw new Error('Download completed without a repository name.')
+        await loadRepositories()
+        await selectRepository(result.repository)
+        repositoryLink.value = ''
+        repositoryRef.value = ''
+        repositoryLinkChecked.value = false
+        activeJob.value = null
+        activeJobKind.value = null
+    } catch (cause) {
+        activeJob.value = {
+            id: activeJob.value?.id ?? '',
+            phase: 'error',
+            message: cause instanceof Error ? cause.message : 'Repository download failed.',
+        }
     }
+}
+
+async function rebuildCurrentRepository() {
+    if (!appUI.currentRepository || jobRunning.value) return
+    try {
+        activeJobKind.value = 'rebuild'
+        await startRemoteJob('/data/graph/rebuild', { repo: appUI.currentRepository })
+        await loadCurrentRepository()
+        activeJob.value = null
+        activeJobKind.value = null
+    } catch (cause) {
+        activeJob.value = {
+            id: activeJob.value?.id ?? '',
+            phase: 'error',
+            message: cause instanceof Error ? cause.message : 'Graph rebuild failed.',
+        }
+    }
+}
+
+async function saveWorkspace() {
+    saveState.value = 'saving'
+    try {
+        await Promise.all([appUI.savePreferences(), appData.savePreferences()])
+        saveState.value = 'saved'
+        setTimeout(() => {
+            if (saveState.value === 'saved') saveState.value = 'idle'
+        }, 1800)
+    } catch (error) {
+        console.error('Failed to save workspace:', error)
+        saveState.value = 'error'
+    }
+}
+
+function rememberNodePosition({ node }: NodeDragEvent) {
+    if (!appUI.currentRepository) return
+    appData.setNodePosition(appUI.currentRepository, String(node.data.key), {
+        x: node.position.x,
+        y: node.position.y,
+    })
+}
+
+function rememberViewport(viewport: ViewportTransform) {
+    if (appUI.currentRepository) appData.setViewport(appUI.currentRepository, viewport)
 }
 
 function openNodeMenu({ event, node }: NodeMouseEvent) {
@@ -245,7 +425,11 @@ function closeMenuFromOutside(event: PointerEvent) {
 onNodesInitialized(() => {
     if (initialViewFitted.value || !graph.value.nodes.length) return
     initialViewFitted.value = true
-    fitGraph()
+    const viewport = appUI.currentRepository
+        ? appData.viewports[appUI.currentRepository]
+        : undefined
+    if (viewport) void setViewport(viewport)
+    else fitGraph()
 })
 onMounted(async () => {
     document.addEventListener('pointerdown', closeMenuFromOutside)
@@ -265,7 +449,10 @@ onMounted(async () => {
     appData.setData([])
     repositoryModalOpen.value = true
 })
-onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromOutside))
+onBeforeUnmount(() => {
+    jobEvents?.close()
+    document.removeEventListener('pointerdown', closeMenuFromOutside)
+})
 </script>
 
 <template>
@@ -284,11 +471,22 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
             <div class="toolbar-actions">
                 <button
                     class="icon-button"
-                    :disabled="appData.loading || !appUI.currentRepository"
-                    title="Reload backend data"
-                    @click="loadCurrentRepository"
+                    :disabled="appData.loading || jobRunning || !appUI.currentRepository"
+                    title="Rebuild graph from repository files"
+                    @click="rebuildCurrentRepository"
                 >
-                    <IconRefresh :size="20" :class="{ spinning: appData.loading }" />
+                    <IconRefresh :size="20" :class="{ spinning: appData.loading || jobRunning }" />
+                </button>
+                <button
+                    class="icon-button"
+                    :disabled="saveState === 'saving'"
+                    :title="
+                        saveState === 'error' ? 'Save failed; try again' : 'Save workspace state'
+                    "
+                    @click="saveWorkspace"
+                >
+                    <IconCheck v-if="saveState === 'saved'" :size="20" />
+                    <IconDeviceFloppy v-else :size="20" />
                 </button>
                 <button
                     v-if="!appUI.sidebarOpen"
@@ -318,7 +516,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                 :nodes-connectable="false"
                 :delete-key-code="null"
                 @node-click="openNodeMenu"
+                @node-drag-stop="rememberNodePosition"
                 @pane-click="appUI.closeNodeMenu"
+                @viewport-change-end="rememberViewport"
             >
                 <template #edge-directional-straight="edgeProps">
                     <DirectionalStraightEdge v-bind="edgeProps" />
@@ -370,7 +570,21 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                 </template>
             </div>
 
-            <div v-if="appData.error" class="notice" role="alert">
+            <div v-if="jobRunning" class="notice job-notice" role="status">
+                <strong>{{ activeJob?.message }}</strong>
+                <progress
+                    v-if="activeJob?.percent !== undefined"
+                    max="100"
+                    :value="activeJob.percent"
+                />
+                <p v-if="activeJob?.percent !== undefined">{{ activeJob.percent }}%</p>
+            </div>
+            <div v-else-if="activeJob?.phase === 'error'" class="notice" role="alert">
+                <strong>Repository operation failed</strong>
+                <p>{{ activeJob.message }}</p>
+                <button type="button" @click="activeJob = null">Dismiss</button>
+            </div>
+            <div v-else-if="appData.error" class="notice" role="alert">
                 <strong>Could not load the project graph</strong>
                 <p>{{ appData.error }}</p>
                 <button class="primary-button" @click="loadCurrentRepository">
@@ -532,7 +746,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                     </template>
                 </div>
 
-                <div class="repository-divider"><span>or clone a repository</span></div>
+                <div class="repository-divider"><span>or download a repository</span></div>
 
                 <form
                     class="repository-link-form"
@@ -549,12 +763,28 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                             autocomplete="url"
                             placeholder="https://github.com/owner/repository.git"
                             :aria-invalid="repositoryLinkChecked && !repositoryLinkIsValid"
+                            :disabled="jobRunning"
                             @input="repositoryLinkChecked = false"
                         />
-                        <button type="submit" class="icon-button" title="Download repository">
+                        <button
+                            type="submit"
+                            class="icon-button"
+                            title="Download repository"
+                            :disabled="jobRunning"
+                        >
                             <IconDownload :size="20" />
                         </button>
                     </div>
+                    <label for="repository-ref">Branch, tag, or commit (optional)</label>
+                    <input
+                        id="repository-ref"
+                        v-model="repositoryRef"
+                        class="repository-ref-input"
+                        type="text"
+                        autocomplete="off"
+                        placeholder="Detected from URL or default branch"
+                        :disabled="jobRunning"
+                    />
                     <p
                         v-if="repositoryLinkChecked"
                         class="repository-link-result"
@@ -563,9 +793,48 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                         {{
                             repositoryLinkIsValid
                                 ? 'Repository link looks valid.'
-                                : 'Enter a valid HTTP or HTTPS repository URL.'
+                                : 'Enter a valid GitHub or GitLab HTTPS repository URL.'
                         }}
                     </p>
+                    <div
+                        v-if="activeJob && activeJobKind === 'download'"
+                        class="repository-job"
+                        aria-live="polite"
+                    >
+                        <div
+                            v-for="(stage, index) in repositoryJobStages"
+                            :key="stage.phase"
+                            class="repository-job-stage"
+                            :class="`is-${repositoryJobStageStatus(stage.phase)}`"
+                        >
+                            <span class="repository-job-stage-number">Stage {{ index + 1 }}</span>
+                            <strong>{{ stage.label }}</strong>
+                            <span class="repository-job-stage-state">
+                                <IconCheck
+                                    v-if="repositoryJobStageStatus(stage.phase) === 'done'"
+                                    :size="18"
+                                    aria-label="Complete"
+                                />
+                                <IconX
+                                    v-else-if="repositoryJobStageStatus(stage.phase) === 'error'"
+                                    :size="18"
+                                    aria-label="Failed"
+                                />
+                                <IconRefresh
+                                    v-else-if="repositoryJobStageStatus(stage.phase) === 'active'"
+                                    :size="17"
+                                    class="spinning"
+                                    aria-label="In progress"
+                                />
+                                <span v-if="repositoryJobStagePercent(stage.phase) !== undefined">
+                                    {{ repositoryJobStagePercent(stage.phase) }}%
+                                </span>
+                            </span>
+                        </div>
+                        <p v-if="activeJob.phase === 'error'" class="error-text">
+                            {{ activeJob.message }}
+                        </p>
+                    </div>
                 </form>
             </section>
         </div>

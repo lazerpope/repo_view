@@ -8,7 +8,9 @@ export async function getFolders(path: string, includeEmpty = false) {
 
     const result = []
 
-    for (const folder of entries.filter((entry) => entry.isDirectory())) {
+    for (const folder of entries.filter(
+        (entry) => entry.isDirectory() && !entry.name.startsWith('.download-'),
+    )) {
         const fullPath = join(path, folder.name)
         const contents = await readdir(fullPath)
 
