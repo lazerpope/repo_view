@@ -61,6 +61,49 @@ test('links project files by full folder path', () => {
     assert.ok(graph.nodes.some((node) => node.data.label === 'express' && node.data.kind === 'lib'))
 })
 
+test('links parsed files whose labels already include their extensions', () => {
+    const parsedStructure: Structure = [
+        {
+            type: 'folder',
+            label: 'src',
+            contains: [
+                {
+                    type: 'file',
+                    label: 'Dashboard.tsx',
+                    extension: 'tsx',
+                    imports: [
+                        { type: 'file', label: 'src/FileUploadModal.tsx' },
+                        { type: 'file', label: 'src/events.py' },
+                    ],
+                },
+                {
+                    type: 'file',
+                    label: 'FileUploadModal.tsx',
+                    extension: 'tsx',
+                    imports: [],
+                },
+                {
+                    type: 'file',
+                    label: 'events.py',
+                    extension: 'py',
+                    imports: [],
+                },
+            ],
+        },
+    ]
+    const graph = buildGraph(parsedStructure, {
+        basePath: '',
+        enabledExtensions: new Set(['tsx', 'py']),
+    })
+    const source = graph.nodes.find((node) => node.data.path === '/src/Dashboard.tsx')
+    const importedPaths = graph.edges
+        .filter((edge) => edge.data?.kind === 'imports' && edge.source === source?.id)
+        .map((edge) => graph.nodes.find((node) => node.id === edge.target)?.data.path)
+        .sort()
+
+    assert.deepEqual(importedPaths, ['/src/FileUploadModal.tsx', '/src/events.py'])
+})
+
 test('ignores project-file links outside the selected folder', () => {
     const graph = buildGraph([structure[0]!], options)
 

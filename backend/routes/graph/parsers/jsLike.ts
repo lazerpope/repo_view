@@ -25,12 +25,16 @@ function classifyImport(specifier: string): Import {
 
 export function parseJS(code: string): Import[] {
     const specifiers: string[] = []
+    const runtimeCode = code.replace(
+        /\b(?:import|export)\s+type\b[\s\S]*?\bfrom\s*["'][^"']+["']\s*;?/g,
+        '',
+    )
     const staticImport =
         /\b(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']/g
     const calledImport = /\b(?:require|import)\s*\(\s*["']([^"']+)["']\s*\)/g
 
     for (const pattern of [staticImport, calledImport]) {
-        for (const match of code.matchAll(pattern)) {
+        for (const match of runtimeCode.matchAll(pattern)) {
             if (match[1]) specifiers.push(match[1])
         }
     }

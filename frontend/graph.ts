@@ -146,7 +146,8 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
     let maxProjectX = 0
 
     const addFileIndex = (index: Map<string, string[]>, key: string, id: string) => {
-        index.set(key, [...(index.get(key) ?? []), id])
+        const matches = index.get(key) ?? []
+        if (!matches.includes(id)) index.set(key, [...matches, id])
     }
 
     const connect = (source: string, target: string, kind: ConnectionKind) => {

@@ -59,22 +59,41 @@ test('second pass parses and resolves JavaScript and Python imports', async () =
     try {
         await mkdir(join(repository, 'src'))
         await mkdir(join(repository, 'pkg'))
+        await mkdir(join(repository, 'backend', 'src', 'api'), { recursive: true })
         await writeFile(
             join(repository, 'src', 'main.ts'),
             [
-                "import { helper } from './util'",
+                'import {',
+                '    helper,',
+                "} from './util'",
+                'import type {',
+                '    Model,',
+                "} from './types'",
                 "import React from 'react'",
                 "import { readFile } from 'node:fs'",
             ].join('\n'),
         )
         await writeFile(join(repository, 'src', 'util.ts'), 'export const helper = true')
+        await writeFile(join(repository, 'src', 'types.ts'), 'export interface Model {}')
         await writeFile(join(repository, 'root.ts'), "import { helper } from 'src/util'")
         await writeFile(
-            join(repository, 'pkg', 'app.py'),
-            ['from .helper import run', 'import os', 'import requests'].join('\n'),
+            join(repository, 'pkg', 'service.py'),
+            ['from .helper import (', '    run,', ')', 'import os', 'import requests'].join('\n'),
         )
         await writeFile(join(repository, 'pkg', 'helper.py'), 'def run():\n    pass')
         await writeFile(join(repository, 'runner.py'), 'from pkg.helper import run')
+        await writeFile(
+            join(repository, 'backend', 'src', 'app.py'),
+            [
+                'from fastapi.middleware.cors import (',
+                '    CORSMiddleware,',
+                ')',
+                'from src.api.events import (',
+                '    router as events_router,',
+                ')',
+            ].join('\n'),
+        )
+        await writeFile(join(repository, 'backend', 'src', 'api', 'events.py'), 'router = object()')
         await writeFile(join(repository, 'README.md'), 'unsupported')
 
         const structure = await parseRepository(repository)
@@ -83,10 +102,14 @@ test('second pass parses and resolves JavaScript and Python imports', async () =
             { type: 'lib-external', label: 'react' },
             { type: 'lib-builtin', label: 'fs' },
         ])
-        assert.deepEqual(findFile(structure, 'app.py')?.imports, [
+        assert.deepEqual(findFile(structure, 'service.py')?.imports, [
             { type: 'file', label: 'pkg/helper.py' },
             { type: 'lib-builtin', label: 'os' },
             { type: 'lib-external', label: 'requests' },
+        ])
+        assert.deepEqual(findFile(structure, 'app.py')?.imports, [
+            { type: 'lib-external', label: 'fastapi' },
+            { type: 'file', label: 'backend/src/api/events.py' },
         ])
         assert.deepEqual(findFile(structure, 'runner.py')?.imports, [
             { type: 'file', label: 'pkg/helper.py' },

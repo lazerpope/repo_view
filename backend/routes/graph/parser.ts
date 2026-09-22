@@ -169,7 +169,7 @@ function buildFileIndex(files: DiscoveredFile[]) {
     }
 }
 
-function localCandidate(imported: string, source: DiscoveredFile): string {
+function localCandidates(imported: string, source: DiscoveredFile): string[] {
     const clean = imported.split(/[?#]/, 1)[0] ?? imported
     const sourceDirectory = dirname(source.relativePath)
 
@@ -180,16 +180,31 @@ function localCandidate(imported: string, source: DiscoveredFile): string {
             for (let level = 1; level < relativeMatch[1].length; level += 1) {
                 base = dirname(base)
             }
-            return normalizePath(join(base, relativeMatch[2].replaceAll('.', '/')))
+            return [normalizePath(join(base, relativeMatch[2].replaceAll('.', '/')))]
         }
-        return normalizePath(clean.replaceAll('.', '/'))
+        return rootedCandidates(clean.replaceAll('.', '/'), sourceDirectory)
     }
 
-    if (clean.startsWith('@/')) return normalizePath(join('src', clean.slice(2)))
-    if (clean.startsWith('~/')) return normalizePath(clean.slice(2))
-    if (clean.startsWith('/')) return normalizePath(clean)
-    if (clean.startsWith('.')) return normalizePath(join(sourceDirectory, clean))
-    return normalizePath(clean)
+    if (clean.startsWith('@/'))
+        return rootedCandidates(join('src', clean.slice(2)), sourceDirectory)
+    if (clean.startsWith('~/')) return rootedCandidates(clean.slice(2), sourceDirectory)
+    if (clean.startsWith('/')) return [normalizePath(clean)]
+    if (clean.startsWith('.')) return [normalizePath(join(sourceDirectory, clean))]
+    return rootedCandidates(clean, sourceDirectory)
+}
+
+function rootedCandidates(imported: string, sourceDirectory: string): string[] {
+    const candidates: string[] = []
+    let directory = normalizePath(sourceDirectory)
+
+    while (directory && directory !== '.') {
+        candidates.push(normalizePath(join(directory, imported)))
+        const parent = normalizePath(dirname(directory))
+        if (!parent || parent === directory || parent === '.') break
+        directory = parent
+    }
+    candidates.push(normalizePath(imported))
+    return [...new Set(candidates)]
 }
 
 function resolveImport(
@@ -199,11 +214,13 @@ function resolveImport(
 ): Import {
     if (imported.type === 'lib-builtin') return imported
 
-    const candidate = localCandidate(imported.label, source)
-    const localFile = findFile(candidate)
+    const candidates = localCandidates(imported.label, source)
+    const localFile = candidates.map(findFile).find((match) => match !== null)
     if (localFile) return { type: 'file', label: localFile }
 
-    if (imported.type === 'file') return { type: 'file', label: candidate }
+    if (imported.type === 'file') {
+        return { type: 'file', label: candidates.at(-1) ?? imported.label }
+    }
     if (source.entry.extension === 'py') {
         return { ...imported, label: imported.label.split('.')[0] ?? imported.label }
     }

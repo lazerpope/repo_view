@@ -383,23 +383,40 @@ function classifyImport(moduleName: string): Import {
 
 export function parsePython(code: string): Import[] {
     const imports: Import[] = []
+    const statements: string[] = []
+    let statement = ''
+    let bracketDepth = 0
 
     for (const line of code.split(/\r?\n/)) {
-        const importMatch = line.match(/^\s*import\s+(.+?)(?:\s*#.*)?$/)
+        const withoutComment = line.replace(/\s+#.*$/, '').trim()
+        if (!withoutComment && !statement) continue
+        statement += `${statement ? ' ' : ''}${withoutComment.replace(/\\$/, '').trim()}`
+        bracketDepth +=
+            (withoutComment.match(/[([{]/g)?.length ?? 0) -
+            (withoutComment.match(/[)\]}]/g)?.length ?? 0)
+        if (bracketDepth > 0 || withoutComment.endsWith('\\')) continue
+        if (statement) statements.push(statement)
+        statement = ''
+        bracketDepth = 0
+    }
+    if (statement) statements.push(statement)
+
+    for (const importStatement of statements) {
+        const importMatch = importStatement.match(/^import\s+(.+)$/)
         if (importMatch?.[1]) {
-            for (const item of importMatch[1].split(',')) {
+            for (const item of importMatch[1].replace(/^\(|\)$/g, '').split(',')) {
                 const moduleName = item.trim().split(/\s+as\s+/)[0]
                 if (moduleName) imports.push(classifyImport(moduleName))
             }
             continue
         }
 
-        const fromMatch = line.match(/^\s*from\s+([\w.]+)\s+import\s+(.+?)(?:\s*#.*)?$/)
+        const fromMatch = importStatement.match(/^from\s+([\w.]+)\s+import\s+(.+)$/)
         if (!fromMatch?.[1]) continue
 
         const moduleName = fromMatch[1]
         if (/^\.+$/.test(moduleName) && fromMatch[2]) {
-            for (const item of fromMatch[2].split(',')) {
+            for (const item of fromMatch[2].replace(/^\(|\)$/g, '').split(',')) {
                 const importedName = item.trim().split(/\s+as\s+/)[0]
                 if (importedName && importedName !== '*') {
                     imports.push({ type: 'file', label: `${moduleName}${importedName}` })
