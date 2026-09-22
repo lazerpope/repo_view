@@ -2,9 +2,11 @@
 import {
     IconAdjustments,
     IconBox,
+    IconDownload,
     IconEye,
     IconEyeOff,
     IconFileCode,
+    IconFolder,
     IconFocus2,
     IconFocusCentered,
     IconRefresh,
@@ -33,6 +35,24 @@ const { fitView, onNodesInitialized } = useVueFlow()
 const graphCanvas = ref<HTMLElement | null>(null)
 const nodeMenuElement = ref<HTMLElement | null>(null)
 const initialViewFitted = ref(false)
+const repositoryModalOpen = ref(!appUI.currentRepository)
+const repositories = ref<string[]>([])
+const repositoriesLoading = ref(false)
+const repositoriesError = ref('')
+const repositoryLink = ref('')
+const repositoryLinkChecked = ref(false)
+
+const repositoryLinkIsValid = computed(() => {
+    const value = repositoryLink.value.trim()
+    if (!value) return false
+
+    try {
+        const url = new URL(value)
+        return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname)
+    } catch {
+        return false
+    }
+})
 
 const topologyGraph = computed(() =>
     buildGraph(appData.visibleStructure, {
@@ -121,6 +141,54 @@ function fitGraph() {
     void fitView({ padding: 0.18, maxZoom: 1 })
 }
 
+async function loadRepositories() {
+    repositoriesLoading.value = true
+    repositoriesError.value = ''
+
+    try {
+        const response = await fetch('/data/projects', { signal: AbortSignal.timeout(10_000) })
+        if (!response.ok) throw new Error(`Server returned HTTP ${response.status}.`)
+
+        const value: unknown = await response.json()
+        if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
+            throw new Error('Server returned an invalid repository list.')
+        }
+        repositories.value = value
+    } catch (cause) {
+        repositories.value = []
+        repositoriesError.value = cause instanceof Error ? cause.message : 'Unknown error.'
+    } finally {
+        repositoriesLoading.value = false
+    }
+}
+
+async function loadCurrentRepository() {
+    if (!appUI.currentRepository) return
+    initialViewFitted.value = false
+    appData.setData([])
+    await appData.loadData(appUI.currentRepository)
+}
+
+async function selectRepository(repository: string) {
+    appUI.currentRepository = repository
+    repositoryModalOpen.value = false
+    await loadCurrentRepository()
+}
+
+function openRepositoryModal() {
+    repositoryModalOpen.value = true
+    void loadRepositories()
+}
+
+function submitRepositoryLink() {
+    repositoryLinkChecked.value = true
+    if (repositoryLinkIsValid.value) {
+        console.log('Repository link is valid:', repositoryLink.value.trim())
+    } else {
+        console.log('Repository link is not valid:', repositoryLink.value)
+    }
+}
+
 function openNodeMenu({ event, node }: NodeMouseEvent) {
     const kind = node.data.kind
     const point = 'touches' in event ? (event.touches[0] ?? event.changedTouches[0]) : event
@@ -161,9 +229,23 @@ onNodesInitialized(() => {
     initialViewFitted.value = true
     fitGraph()
 })
-onMounted(() => {
+onMounted(async () => {
     document.addEventListener('pointerdown', closeMenuFromOutside)
-    if (!appData.rawData.length) void appData.loadData('fullstack-test-task')
+    await loadRepositories()
+
+    if (
+        appUI.currentRepository &&
+        !repositoriesError.value &&
+        repositories.value.includes(appUI.currentRepository)
+    ) {
+        repositoryModalOpen.value = false
+        await loadCurrentRepository()
+        return
+    }
+
+    appUI.currentRepository = null
+    appData.setData([])
+    repositoryModalOpen.value = true
 })
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromOutside))
 </script>
@@ -171,16 +253,22 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
 <template>
     <main class="graph-page">
         <header class="toolbar">
-            <div>
+            <button
+                type="button"
+                class="repository-menu-button"
+                title="Choose a repository"
+                @click="openRepositoryModal"
+            >
                 <span style="font-size: 1.5rem">Project graph </span>
                 <IconMenu-2 :size="20" style="transform: translate(0, 4px)" />
-            </div>
+                <small v-if="appUI.currentRepository">{{ appUI.currentRepository }}</small>
+            </button>
             <div class="toolbar-actions">
                 <button
                     class="icon-button"
-                    :disabled="appData.loading"
+                    :disabled="appData.loading || !appUI.currentRepository"
                     title="Reload backend data"
-                    @click="appData.loadData"
+                    @click="loadCurrentRepository"
                 >
                     <IconRefresh :size="20" :class="{ spinning: appData.loading }" />
                 </button>
@@ -196,6 +284,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
         </header>
 
         <section
+            v-if="appUI.currentRepository"
             ref="graphCanvas"
             class="graph-canvas"
             :class="graphVisualClasses"
@@ -241,7 +330,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
             <div v-if="appData.error" class="notice" role="alert">
                 <strong>Could not load the project graph</strong>
                 <p>{{ appData.error }}</p>
-                <button class="primary-button" @click="appData.loadData">
+                <button class="primary-button" @click="loadCurrentRepository">
                     <IconRefresh :size="17" />
                     Try again
                 </button>
@@ -344,5 +433,98 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                 </button>
             </div>
         </section>
+
+        <div
+            v-if="repositoryModalOpen"
+            class="repository-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="repository-modal-title"
+        >
+            <section class="repository-dialog">
+                <button
+                    v-if="appUI.currentRepository"
+                    type="button"
+                    class="icon-button repository-dialog-close"
+                    title="Close repository chooser"
+                    @click="repositoryModalOpen = false"
+                >
+                    <IconX :size="20" />
+                </button>
+
+                <div class="repository-dialog-heading">
+                    <span class="repository-dialog-icon"><IconFolder :size="26" /></span>
+                    <div>
+                        <h1 id="repository-modal-title">Choose a repository</h1>
+                        <p>Select a local project to open its graph.</p>
+                    </div>
+                </div>
+
+                <div class="repository-list" aria-live="polite">
+                    <p v-if="repositoriesLoading" class="repository-list-status">
+                        Loading repositories...
+                    </p>
+                    <div v-else-if="repositoriesError" class="repository-list-status error-text">
+                        <p>{{ repositoriesError }}</p>
+                        <button type="button" @click="loadRepositories">
+                            <IconRefresh :size="17" />
+                            Try again
+                        </button>
+                    </div>
+                    <p v-else-if="!repositories.length" class="repository-list-status">
+                        No repositories were found.
+                    </p>
+                    <template v-else>
+                        <button
+                            v-for="repository in repositories"
+                            :key="repository"
+                            type="button"
+                            class="repository-choice"
+                            :class="{ selected: repository === appUI.currentRepository }"
+                            @click="selectRepository(repository)"
+                        >
+                            <IconFolder :size="19" />
+                            <span>{{ repository }}</span>
+                        </button>
+                    </template>
+                </div>
+
+                <div class="repository-divider"><span>or clone a repository</span></div>
+
+                <form
+                    class="repository-link-form"
+                    novalidate
+                    @submit.prevent="submitRepositoryLink"
+                >
+                    <label for="repository-link">Repository URL</label>
+                    <div class="repository-link-control">
+                        <input
+                            id="repository-link"
+                            v-model="repositoryLink"
+                            type="url"
+                            inputmode="url"
+                            autocomplete="url"
+                            placeholder="https://github.com/owner/repository.git"
+                            :aria-invalid="repositoryLinkChecked && !repositoryLinkIsValid"
+                            @input="repositoryLinkChecked = false"
+                        />
+                        <button type="submit" class="icon-button" title="Download repository">
+                            <IconDownload :size="20" />
+                        </button>
+                    </div>
+                    <p
+                        v-if="repositoryLinkChecked"
+                        class="repository-link-result"
+                        :class="{ 'error-text': !repositoryLinkIsValid }"
+                    >
+                        {{
+                            repositoryLinkIsValid
+                                ? 'Repository link looks valid.'
+                                : 'Enter a valid HTTP or HTTPS repository URL.'
+                        }}
+                    </p>
+                </form>
+            </section>
+        </div>
     </main>
 </template>

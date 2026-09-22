@@ -1,29 +1,38 @@
 import { Router } from 'express'
-import type { Structure } from '../../../shared/types.ts'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { workDirectory } from '../../config.ts'
 import { join } from 'node:path'
-import {getFolders} from './files.ts'
-
-const graphFile = join(workDirectory, 'graph.json')
+import { getFolders } from './files.ts'
 
 const router = Router()
 
-async function readGraph() {
-    try {
-        return await readFile(graphFile, 'utf8')
-    } catch (error) {
-        console.log('readGraph: ', error)
-        return ''
-    }
+async function readGraph(repository: string) {
+    const graphFile = join(workDirectory, repository, 'graph.json')
+    return readFile(graphFile, 'utf8')
 }
 
 router.get('/graph', async (req, res) => {
-    
-    
+    const repository = req.query.repo
+    if (typeof repository !== 'string' || !repository.trim()) {
+        res.status(400).json({ error: 'A repository name is required.' })
+        return
+    }
+
     try {
-        res.send(await readGraph())
+        const projects = await getFolders(workDirectory)
+        if (!projects.includes(repository)) {
+            res.status(404).json({ error: 'Repository not found.' })
+            return
+        }
+
+        res.type('application/json').send(await readGraph(repository))
     } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            res.status(404).json({ error: 'Graph data not found for this repository.' })
+            return
+        }
+
+        console.error('Failed to load graph:', error)
         res.status(500).json({
             error: 'Internal server error',
         })
@@ -31,14 +40,10 @@ router.get('/graph', async (req, res) => {
 })
 
 router.get('/projects', async (req, res) => {
-    
-    const folders = await getFolders(workDirectory)
-    console.log(folders);
-    
-    
     try {
-        res.send( folders)
+        res.json(await getFolders(workDirectory))
     } catch (error) {
+        console.error('Failed to list projects:', error)
         res.status(500).json({
             error: 'Internal server error',
         })

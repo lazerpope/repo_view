@@ -33,6 +33,7 @@ export interface NodeMenuState {
 }
 
 interface AppUIPreferences {
+    currentRepository: string | null
     sidebarOpen: boolean
     sidebarWidth: number
     activeTab: SidebarTab
@@ -70,7 +71,9 @@ export const useAppUI = defineStore('appUI', () => {
     const nodeMenu = ref<NodeMenuState | null>(null)
     const nodeStyles = reactive(cloneDefaults(defaultNodeStyles))
     const connectionStyles = reactive(cloneDefaults(defaultConnectionStyles))
-    const currentRepository = ref<string|null>(null)
+    const currentRepository = ref<string | null>(
+        typeof saved?.currentRepository === 'string' ? saved.currentRepository : null,
+    )
 
     for (const kind of nodeKinds) Object.assign(nodeStyles[kind], saved?.nodeStyles?.[kind])
     for (const kind of connectionKinds) {
@@ -104,6 +107,7 @@ export const useAppUI = defineStore('appUI', () => {
     let storeTimeout: ReturnType<typeof setTimeout>
     watch(
         () => ({
+            currentRepository: currentRepository.value,
             sidebarOpen: sidebarOpen.value,
             sidebarWidth: sidebarWidth.value,
             activeTab: activeTab.value,
@@ -126,6 +130,7 @@ export const useAppUI = defineStore('appUI', () => {
         jsonFontSize,
         nodeStyles,
         connectionStyles,
+        currentRepository,
         nodeMenu,
         openSidebar,
         closeSidebar,

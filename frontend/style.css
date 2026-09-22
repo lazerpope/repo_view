@@ -131,6 +131,191 @@ h2 {
     gap: 8px;
 }
 
+.repository-menu-button {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    min-height: 0;
+    padding: 4px 7px;
+    border-color: transparent;
+    background: transparent;
+    text-align: left;
+}
+
+.repository-menu-button:hover {
+    background: #1e293b;
+}
+
+.repository-menu-button small {
+    grid-column: 1 / -1;
+    max-width: 360px;
+    overflow: hidden;
+    color: #94a3b8;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.repository-modal {
+    position: fixed;
+    z-index: 20;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    overflow: auto;
+    background: radial-gradient(circle at 50% 35%, #1e3a4f80, transparent 42%), #0b1120f7;
+    backdrop-filter: blur(8px);
+}
+
+.repository-dialog {
+    position: relative;
+    width: min(620px, 100%);
+    padding: 28px;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    background: #111827;
+    box-shadow: 0 24px 80px #0009;
+}
+
+.repository-dialog-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+}
+
+.repository-dialog-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-right: 42px;
+}
+
+.repository-dialog-heading h1 {
+    margin-bottom: 5px;
+    font-size: 22px;
+}
+
+.repository-dialog-heading p {
+    margin-bottom: 0;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.repository-dialog-icon {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid #0f766e;
+    border-radius: 12px;
+    background: #123135;
+    color: #5eead4;
+}
+
+.repository-list {
+    display: grid;
+    max-height: min(340px, 42vh);
+    gap: 8px;
+    margin-top: 24px;
+    overflow: auto;
+}
+
+.repository-choice {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 13px;
+    border-color: #334155;
+    background: #172033;
+}
+
+.repository-choice.selected {
+    border-color: #14b8a6;
+    background: #123135;
+    color: #99f6e4;
+}
+
+.repository-choice span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.repository-list-status {
+    margin: 0;
+    padding: 22px;
+    border: 1px dashed #334155;
+    border-radius: 9px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+.repository-list-status p {
+    margin-bottom: 12px;
+}
+
+.error-text {
+    color: #fca5a5;
+}
+
+.repository-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 18px;
+    color: #64748b;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.repository-divider::before,
+.repository-divider::after {
+    height: 1px;
+    flex: 1;
+    background: #334155;
+    content: '';
+}
+
+.repository-link-form {
+    display: grid;
+    gap: 8px;
+}
+
+.repository-link-form label {
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.repository-link-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 8px;
+}
+
+.repository-link-control input {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 11px;
+    border: 1px solid #475569;
+    border-radius: 7px;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+.repository-link-control input[aria-invalid='true'] {
+    border-color: #ef4444;
+}
+
+.repository-link-result {
+    margin: 0;
+    color: #5eead4;
+    font-size: 12px;
+}
+
 .graph-canvas {
     position: relative;
     flex: 1;
