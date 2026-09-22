@@ -7,7 +7,7 @@ import {
     type ImportType,
     type Structure,
 } from '../shared/types.ts'
-import type { ConnectionCurve, ConnectionKind, NodeKind } from './stores/appUI.ts'
+import type { ConnectionCurve, ConnectionKind, FocusMode, NodeKind } from './stores/appUI.ts'
 
 export const noExtensionKey = '(no extension)'
 
@@ -33,9 +33,11 @@ export interface GraphViewOptions {
     hiddenNodeKinds?: readonly NodeKind[]
     focusedNodeKey: string | null
     focusDepth: number | null
+    focusMode?: FocusMode
 }
 
 export type ConnectionCurves = Record<ConnectionKind, ConnectionCurve>
+export type StraightArrowOptions = Record<ConnectionKind, { count: number; spacing: number }>
 
 function parseImport(value: unknown): Import {
     if (typeof value === 'string') return { type: 'lib', label: value }
@@ -117,7 +119,9 @@ export function collectSubtreeNodeKeys(structure: Structure, folderKey: string):
 }
 
 function edgeType(curve: ConnectionCurve): string {
-    return curve === 'bezier' ? 'default' : curve
+    if (curve === 'bezier') return 'default'
+    if (curve === 'straight') return 'directional-straight'
+    return curve
 }
 
 function fileName(file: File): string {
@@ -276,12 +280,23 @@ export function buildGraph(entries: Structure, options: GraphOptions): ProjectGr
 export function applyConnectionCurves(
     graph: ProjectGraph,
     connectionCurves: ConnectionCurves,
+    straightArrows?: StraightArrowOptions,
 ): ProjectGraph {
     return {
         nodes: graph.nodes,
         edges: graph.edges.map((edge) => {
             const kind = edge.data?.kind as ConnectionKind
-            return { ...edge, type: edgeType(connectionCurves[kind]) }
+            const arrowOptions = straightArrows?.[kind]
+            return {
+                ...edge,
+                type: edgeType(connectionCurves[kind]),
+                data: {
+                    ...edge.data,
+                    straightArrowCount: arrowOptions?.count ?? 2,
+                    straightArrowSpacing: arrowOptions?.spacing ?? 400,
+                    straightArrowReverse: kind === 'imports',
+                },
+            }
         }),
     }
 }
@@ -305,12 +320,45 @@ export function applyGraphView(graph: ProjectGraph, options: GraphViewOptions): 
     const depth = options.focusDepth ?? Number.POSITIVE_INFINITY
     let step = 0
 
+    const focusMode = options.focusMode
+    const rootKind = root.data.kind as NodeKind
+
     while (frontier.size && step < depth) {
         const next = new Set<string>()
         for (const edge of edges) {
-            if (!frontier.has(edge.source) || visibleIds.has(edge.target)) continue
-            visibleIds.add(edge.target)
-            next.add(edge.target)
+            if (!focusMode) {
+                if (!frontier.has(edge.source) || visibleIds.has(edge.target)) continue
+                visibleIds.add(edge.target)
+                next.add(edge.target)
+                continue
+            }
+
+            if (rootKind === 'folder' && focusMode === 'connected') {
+                if (!frontier.has(edge.source) || visibleIds.has(edge.target)) continue
+                visibleIds.add(edge.target)
+                next.add(edge.target)
+                continue
+            }
+
+            if (edge.data?.kind !== 'imports') continue
+            const candidates: string[] = []
+            if (
+                (focusMode === 'connected' || focusMode === 'imports') &&
+                frontier.has(edge.source)
+            ) {
+                candidates.push(edge.target)
+            }
+            if (
+                (focusMode === 'connected' || focusMode === 'importers') &&
+                frontier.has(edge.target)
+            ) {
+                candidates.push(edge.source)
+            }
+            for (const candidate of candidates) {
+                if (visibleIds.has(candidate)) continue
+                visibleIds.add(candidate)
+                next.add(candidate)
+            }
         }
         frontier = next
         step += 1

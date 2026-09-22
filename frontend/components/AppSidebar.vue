@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     IconActivity,
+    IconArrowRight,
     IconBackground,
     IconBraces,
     IconColorPicker,
@@ -11,6 +12,7 @@ import {
     IconPlayerPause,
     IconPlayerPlay,
     IconRestore,
+    IconRuler2,
     IconRouteSquare,
     IconSlash,
     IconTypography,
@@ -78,6 +80,17 @@ function updateConnectionColor(kind: ConnectionKind, event: Event) {
     const value = inputValue(event)
     scheduleUpdate(`connection:${kind}:color`, () => {
         appUI.connectionStyles[kind].color = value
+    })
+}
+
+function updateConnectionNumber(
+    kind: ConnectionKind,
+    property: 'straightArrowCount' | 'straightArrowSpacing',
+    event: Event,
+) {
+    const value = Number(inputValue(event))
+    scheduleUpdate(`connection:${kind}:${property}`, () => {
+        appUI.connectionStyles[kind][property] = value
     })
 }
 
@@ -237,6 +250,42 @@ onBeforeUnmount(() => {
                             <IconVectorSpline :size="19" />
                         </button>
                     </div>
+                    <template v-if="appUI.connectionStyles[kind].curve === 'straight'">
+                        <label
+                            class="icon-field range-field straight-arrow-setting"
+                            title="Maximum middle arrows"
+                        >
+                            <IconArrowRight :size="17" />
+                            <span class="setting-label">Max arrows</span>
+                            <input
+                                :value="appUI.connectionStyles[kind].straightArrowCount"
+                                type="range"
+                                min="0"
+                                max="8"
+                                step="1"
+                                @input="updateConnectionNumber(kind, 'straightArrowCount', $event)"
+                            />
+                            <output>{{ appUI.connectionStyles[kind].straightArrowCount }}</output>
+                        </label>
+                        <label
+                            class="icon-field range-field straight-arrow-setting"
+                            title="Edge length in pixels per middle arrow"
+                        >
+                            <IconRuler2 :size="17" />
+                            <span class="setting-label">Px / arrow</span>
+                            <input
+                                :value="appUI.connectionStyles[kind].straightArrowSpacing"
+                                type="range"
+                                min="50"
+                                max="1000"
+                                step="50"
+                                @input="
+                                    updateConnectionNumber(kind, 'straightArrowSpacing', $event)
+                                "
+                            />
+                            <output>{{ appUI.connectionStyles[kind].straightArrowSpacing }}</output>
+                        </label>
+                    </template>
                     <div class="option-group animation-options" role="group" aria-label="Animation">
                         <button
                             class="option-button animation-control"

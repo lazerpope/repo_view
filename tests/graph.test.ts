@@ -122,6 +122,63 @@ test('limits a focused graph by outgoing connection depth', () => {
     assert.deepEqual(graph.nodes.map((node) => node.data.key).sort(), ['file:/A/main', 'folder:/A'])
 })
 
+test('shows imports of a file without including containment nodes', () => {
+    const baseGraph = buildGraph(structure, options)
+    const graph = applyGraphView(baseGraph, {
+        hiddenNodeKeys: [],
+        focusedNodeKey: 'file:/A/main',
+        focusDepth: null,
+        focusMode: 'imports',
+    })
+
+    assert.deepEqual(graph.nodes.map((node) => node.data.label).sort(), [
+        'express',
+        'main.ts',
+        'target.ts',
+    ])
+})
+
+test('shows files that import a file or library', () => {
+    const baseGraph = buildGraph(structure, options)
+    const targetGraph = applyGraphView(baseGraph, {
+        hiddenNodeKeys: [],
+        focusedNodeKey: 'file:/B/target',
+        focusDepth: null,
+        focusMode: 'importers',
+    })
+    const libraryGraph = applyGraphView(baseGraph, {
+        hiddenNodeKeys: [],
+        focusedNodeKey: 'lib:lib:express',
+        focusDepth: null,
+        focusMode: 'importers',
+    })
+
+    assert.deepEqual(targetGraph.nodes.map((node) => node.data.label).sort(), [
+        'main.ts',
+        'target.ts',
+    ])
+    assert.deepEqual(libraryGraph.nodes.map((node) => node.data.label).sort(), [
+        'express',
+        'main.ts',
+    ])
+})
+
+test('shows the entire bidirectional import component', () => {
+    const baseGraph = buildGraph(structure, options)
+    const graph = applyGraphView(baseGraph, {
+        hiddenNodeKeys: [],
+        focusedNodeKey: 'file:/B/target',
+        focusDepth: null,
+        focusMode: 'connected',
+    })
+
+    assert.deepEqual(graph.nodes.map((node) => node.data.label).sort(), [
+        'express',
+        'main.ts',
+        'target.ts',
+    ])
+})
+
 test('removes a hidden node and all of its connections', () => {
     const baseGraph = buildGraph(structure, options)
     const hiddenNode = baseGraph.nodes.find((node) => node.data.key === 'file:/A/main')

@@ -8,17 +8,20 @@ const DEBUG = true
 const app = express()
 
 app.use(express.json())
-app.use('/', (req, res, next) => {
-    if (!DEBUG) next()
 
+if (DEBUG) {
+    app.use('/', (req, res, next) => {
 
-    console.log(
-        `[${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}] ${req.method} at ${req.path} ${JSON.stringify(req.query) || 'no_query'} ${req.body || 'no_body'} `,
-    )
-    // console.log(req);
-    next()
-})
+        let msg = `[${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}] `
+        msg += `${req.method} at ${req.path} `
+        msg += `${JSON.stringify(req.query) || 'no_query'} `
+        msg += `${JSON.stringify(req.body) || 'no_body'} `
+        console.log(msg)
+        
+        next()
+    })
 
+}
 app.use('/data', routeGraph)
 app.use('/user', routeUser)
 

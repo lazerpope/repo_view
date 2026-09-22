@@ -3,6 +3,7 @@ import { computed, inject, ref, watch } from 'vue'
 import type { Folder, Structure } from '../../shared/types.ts'
 import { collectSubtreeNodeKeys, extensionOf, parseStructure } from '../graph.ts'
 import { memoryPreferencesProvider, preferencesProviderKey } from '../providers/preferences.ts'
+import type { FocusMode } from './appUI.ts'
 
 export interface FolderChoice {
     path: string
@@ -22,6 +23,7 @@ interface AppDataPreferences {
     hiddenLibraryKinds: LibraryKind[]
     focusedNodeKey: string | null
     focusDepth: number | null
+    focusMode: FocusMode
 }
 
 const storageKey = 'repo-view:data-preferences'
@@ -72,6 +74,11 @@ export const useAppData = defineStore('appData', () => {
     const hiddenLibraryKinds = ref<LibraryKind[]>(saved?.hiddenLibraryKinds ?? [])
     const focusedNodeKey = ref<string | null>(saved?.focusedNodeKey ?? null)
     const focusDepth = ref<number | null>(saved?.focusDepth ?? null)
+    const focusMode = ref<FocusMode>(
+        saved?.focusMode === 'importers' || saved?.focusMode === 'imports'
+            ? saved.focusMode
+            : 'connected',
+    )
 
     const folders = computed(() => listFolders(rawData.value))
     const selectedFolder = computed(
@@ -96,7 +103,9 @@ export const useAppData = defineStore('appData', () => {
         error.value = ''
         const params = new URLSearchParams({ repo })
         try {
-            const response = await fetch(`/data/graph?${params}`, { signal: AbortSignal.timeout(10_000) })
+            const response = await fetch(`/data/graph?${params}`, {
+                signal: AbortSignal.timeout(10_000),
+            })
             if (!response.ok) throw new Error(`Server returned HTTP ${response.status}.`)
             setData(await response.json())
         } catch (cause) {
@@ -138,8 +147,9 @@ export const useAppData = defineStore('appData', () => {
         hiddenLibraryKinds.value = []
     }
 
-    function focusNode(key: string) {
+    function focusNode(key: string, mode: FocusMode = 'connected') {
         focusedNodeKey.value = key
+        focusMode.value = mode
         focusDepth.value = null
     }
 
@@ -160,6 +170,7 @@ export const useAppData = defineStore('appData', () => {
             hiddenLibraryKinds,
             focusedNodeKey,
             focusDepth,
+            focusMode,
         ],
         () => {
             clearTimeout(storeTimeout)
@@ -172,6 +183,7 @@ export const useAppData = defineStore('appData', () => {
                     hiddenLibraryKinds: hiddenLibraryKinds.value,
                     focusedNodeKey: focusedNodeKey.value,
                     focusDepth: focusDepth.value,
+                    focusMode: focusMode.value,
                 })
             }, 200)
         },
@@ -188,6 +200,7 @@ export const useAppData = defineStore('appData', () => {
         hiddenLibraryKinds,
         focusedNodeKey,
         focusDepth,
+        focusMode,
         folders,
         selectedFolder,
         visibleStructure,

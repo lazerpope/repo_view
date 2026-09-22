@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import {
     IconAdjustments,
+    IconArrowBackUp,
+    IconArrowForwardUp,
+    IconArrowsExchange,
     IconBox,
     IconDownload,
     IconEye,
     IconEyeOff,
     IconFileCode,
     IconFolder,
-    IconFocus2,
     IconFocusCentered,
     IconRefresh,
     IconRoute,
@@ -26,8 +28,10 @@ import {
     nodeKinds,
     useAppUI,
     type ConnectionKind,
+    type FocusMode,
     type NodeKind,
 } from '../stores/appUI.ts'
+import DirectionalStraightEdge from './DirectionalStraightEdge.vue'
 
 const appData = useAppData()
 const appUI = useAppUI()
@@ -66,13 +70,27 @@ const graphView = computed(() =>
         hiddenNodeKinds: appData.hiddenLibraryKinds,
         focusedNodeKey: appData.focusedNodeKey,
         focusDepth: appData.focusDepth,
+        focusMode: appData.focusMode,
     }),
 )
 const graph = computed(() =>
-    applyConnectionCurves(graphView.value, {
-        contains: appUI.connectionStyles.contains.curve,
-        imports: appUI.connectionStyles.imports.curve,
-    }),
+    applyConnectionCurves(
+        graphView.value,
+        {
+            contains: appUI.connectionStyles.contains.curve,
+            imports: appUI.connectionStyles.imports.curve,
+        },
+        {
+            contains: {
+                count: appUI.connectionStyles.contains.straightArrowCount,
+                spacing: appUI.connectionStyles.contains.straightArrowSpacing,
+            },
+            imports: {
+                count: appUI.connectionStyles.imports.straightArrowCount,
+                spacing: appUI.connectionStyles.imports.straightArrowSpacing,
+            },
+        },
+    ),
 )
 const focusDepthStep = computed({
     get: () => appData.focusDepth ?? 7,
@@ -192,7 +210,7 @@ function submitRepositoryLink() {
 function openNodeMenu({ event, node }: NodeMouseEvent) {
     const kind = node.data.kind
     const point = 'touches' in event ? (event.touches[0] ?? event.changedTouches[0]) : event
-    if ((kind !== 'folder' && kind !== 'file') || !point || !graphCanvas.value) {
+    if (!nodeKinds.includes(kind as NodeKind) || !point || !graphCanvas.value) {
         appUI.closeNodeMenu()
         return
     }
@@ -201,9 +219,9 @@ function openNodeMenu({ event, node }: NodeMouseEvent) {
     appUI.openNodeMenu({
         key: String(node.data.key),
         label: String(node.data.label),
-        kind,
+        kind: kind as NodeKind,
         x: Math.max(8, Math.min(point.clientX - bounds.left, bounds.width - 230)),
-        y: Math.max(8, Math.min(point.clientY - bounds.top, bounds.height - 140)),
+        y: Math.max(8, Math.min(point.clientY - bounds.top, bounds.height - 250)),
     })
 }
 
@@ -213,9 +231,9 @@ function hideMenuNode() {
     appUI.closeNodeMenu()
 }
 
-function focusMenuNode() {
+function focusMenuNode(mode: FocusMode) {
     if (!appUI.nodeMenu) return
-    appData.focusNode(appUI.nodeMenu.key)
+    appData.focusNode(appUI.nodeMenu.key, mode)
     appUI.closeNodeMenu()
 }
 
@@ -302,6 +320,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                 @node-click="openNodeMenu"
                 @pane-click="appUI.closeNodeMenu"
             >
+                <template #edge-directional-straight="edgeProps">
+                    <DirectionalStraightEdge v-bind="edgeProps" />
+                </template>
                 <template #node-default="{ data }">
                     <span class="node-kind">{{ data.kind }}</span>
                     <strong class="node-label">{{ data.label }}</strong>
@@ -321,10 +342,32 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuFromO
                     <IconEyeOff :size="17" />
                     Hide
                 </button>
-                <button type="button" title="Show graph from this node" @click="focusMenuNode">
-                    <IconFocus2 :size="17" />
-                    Explore from here
+                <button
+                    type="button"
+                    title="Show every import connection for this node"
+                    @click="focusMenuNode('connected')"
+                >
+                    <IconArrowsExchange :size="17" />
+                    Show connected
                 </button>
+                <template v-if="appUI.nodeMenu.kind !== 'folder'">
+                    <button
+                        type="button"
+                        title="Show files and libraries that import this node"
+                        @click="focusMenuNode('importers')"
+                    >
+                        <IconArrowBackUp :size="17" />
+                        Who imports this
+                    </button>
+                    <button
+                        type="button"
+                        title="Show files and libraries imported by this node"
+                        @click="focusMenuNode('imports')"
+                    >
+                        <IconArrowForwardUp :size="17" />
+                        Imports of this
+                    </button>
+                </template>
             </div>
 
             <div v-if="appData.error" class="notice" role="alert">

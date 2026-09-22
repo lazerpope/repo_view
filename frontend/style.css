@@ -405,6 +405,15 @@ h2 {
     stroke-dasharray: var(--edge-dasharray, none);
 }
 
+.vue-flow__edge.project-edge .direction-arrow {
+    fill: none;
+    stroke: var(--edge-color, #64748b);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.5px;
+    pointer-events: none;
+}
+
 .graph-canvas.contains-edges-animated .vue-flow__edge.contains-edge .vue-flow__edge-path,
 .graph-canvas.imports-edges-animated .vue-flow__edge.imports-edge .vue-flow__edge-path {
     stroke-dasharray: var(--edge-animation-dasharray, 5);
@@ -564,7 +573,7 @@ h2 {
     position: absolute;
     z-index: 8;
     display: grid;
-    width: 215px;
+    width: 235px;
     gap: 7px;
     padding: 10px;
     border: 1px solid #475569;
@@ -756,6 +765,17 @@ h2 {
         11px Consolas,
         monospace;
     text-align: right;
+}
+
+.straight-arrow-setting {
+    gap: 7px;
+}
+
+.straight-arrow-setting .setting-label {
+    width: 64px;
+    flex: 0 0 auto;
+    color: inherit;
+    font-size: 11px;
 }
 
 .option-group {

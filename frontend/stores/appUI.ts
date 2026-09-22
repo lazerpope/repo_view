@@ -10,6 +10,7 @@ export type ConnectionKind = (typeof connectionKinds)[number]
 export type SidebarTab = 'styles' | 'raw' | 'folders'
 export type ConnectionLine = 'solid' | 'dashed' | 'dotted'
 export type ConnectionCurve = 'smoothstep' | 'step' | 'straight' | 'bezier'
+export type FocusMode = 'connected' | 'importers' | 'imports'
 
 export interface NodeVisualStyle {
     color: string
@@ -22,12 +23,14 @@ export interface ConnectionVisualStyle {
     line: ConnectionLine
     animated: boolean
     curve: ConnectionCurve
+    straightArrowCount: number
+    straightArrowSpacing: number
 }
 
 export interface NodeMenuState {
     key: string
     label: string
-    kind: 'folder' | 'file'
+    kind: NodeKind
     x: number
     y: number
 }
@@ -51,8 +54,22 @@ export const defaultNodeStyles: Record<NodeKind, NodeVisualStyle> = {
 }
 
 export const defaultConnectionStyles: Record<ConnectionKind, ConnectionVisualStyle> = {
-    contains: { color: '#64748b', line: 'solid', animated: false, curve: 'smoothstep' },
-    imports: { color: '#a78bfa', line: 'dashed', animated: false, curve: 'smoothstep' },
+    contains: {
+        color: '#64748b',
+        line: 'solid',
+        animated: false,
+        curve: 'smoothstep',
+        straightArrowCount: 2,
+        straightArrowSpacing: 400,
+    },
+    imports: {
+        color: '#a78bfa',
+        line: 'dashed',
+        animated: false,
+        curve: 'smoothstep',
+        straightArrowCount: 2,
+        straightArrowSpacing: 400,
+    },
 }
 
 const storageKey = 'repo-view:ui'
