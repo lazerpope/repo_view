@@ -12,7 +12,7 @@ const router = Router()
 
 router.get('/graph', async (
     req: ReqWithQuery<{ repo: string }>,
-     res: Response<string |{error:string}>
+    res: Response<string |{error:string}>
 ) => {
     const repository = req.query.repo
     if (typeof repository !== 'string' || !repository.trim()) {
