@@ -1,3 +1,4 @@
+import { builtinModules } from 'module'
 import type { Import } from '../../../../shared/types.ts'
 
 const pythonBuiltins = new Set([
@@ -370,6 +371,8 @@ const pythonBuiltins = new Set([
     'py_compile',
     '_sitebuiltins',
 ])
+
+
 
 function classifyImport(moduleName: string): Import {
     const label = moduleName.trim()

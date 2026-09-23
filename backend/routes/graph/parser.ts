@@ -56,6 +56,7 @@ parser.for('py').register(parsePython)
 parser.for(['js', 'ts']).register(parseJS)
 parser.for(['jsx', 'tsx']).register(parseJS)
 parser.for('vue').register(parseJS)
+  
 
 const ignoredFolders = new Set([
     '.git',

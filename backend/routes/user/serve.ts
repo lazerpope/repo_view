@@ -1,7 +1,9 @@
+import { Router } from 'express'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { Router } from 'express'
 import { workDirectory } from '../../config.ts'
+import { ReqWithBody } from '../../types.ts'
+import { Response } from "express"
 
 const router = Router()
 const preferencesFile = join(workDirectory, 'prefs.json')
@@ -32,7 +34,7 @@ function savePreferences(preferences: Preferences): Promise<void> {
     return write
 }
 
-router.get('/', async (_req, res) => {
+router.get('/', async (_, res: Response<Preferences|{error:string}>) => {
     try {
         await pendingWrite
         res.status(200).json(await readPreferences())
@@ -42,14 +44,17 @@ router.get('/', async (_req, res) => {
     }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', async (
+    req: ReqWithBody<Preferences>,
+    res: Response<{ success: boolean } | { error: string }>
+) => {
     if (req.body === null || typeof req.body !== 'object' || Array.isArray(req.body)) {
         res.status(400).json({ error: 'Preferences must be a JSON object' })
         return
     }
 
     try {
-        await savePreferences(req.body as Preferences)
+        await savePreferences(req.body)
         res.status(200).json({ success: true })
     } catch (error) {
         console.error('Failed to save user preferences:', error)

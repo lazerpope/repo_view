@@ -1,7 +1,8 @@
-import { Router } from 'express'
+import { Router, type Response } from 'express'
 import { readFile, writeFile } from 'node:fs/promises'
-import { workDirectory } from '../../config.ts'
 import { join } from 'node:path'
+import { workDirectory } from '../../config.ts'
+import type { ReqWithBody, ReqWithParams, ReqWithQuery } from '../../types.ts'
 import { downloadRepository } from './download.ts'
 import { deleteRepository, getFolders } from './files.ts'
 import { startJob, streamJob } from './jobs.ts'
@@ -9,7 +10,10 @@ import { parseRepository } from './parser.ts'
 
 const router = Router()
 
-router.get('/graph', async (req, res) => {
+router.get('/graph', async (
+    req: ReqWithQuery<{ repo: string }>,
+     res: Response<string |{error:string}>
+) => {
     const repository = req.query.repo
     if (typeof repository !== 'string' || !repository.trim()) {
         res.status(400).json({ error: 'A repository name is required.' })
@@ -38,7 +42,10 @@ router.get('/graph', async (req, res) => {
     }
 })
 
-router.post('/graph/rebuild', async (req, res) => {
+router.post('/graph/rebuild', async (
+    req: ReqWithBody<{ repo: string }>, 
+    res: Response<{ jobId: string }|{error:string}>
+) => {
     const repository = req.body?.repo
     if (typeof repository !== 'string' || !repository.trim()) {
         res.status(400).json({ error: 'A repository name is required.' })
@@ -69,7 +76,10 @@ router.post('/graph/rebuild', async (req, res) => {
     }
 })
 
-router.post('/repositories/download', (req, res) => {
+router.post('/repositories/download', (
+    req: ReqWithBody<{ url: string, ref: string }>, 
+    res: Response<{ jobId: string }|{error:string}>
+) => {
     const url = req.body?.url
     const ref = req.body?.ref
     if (typeof url !== 'string' || (ref !== undefined && typeof ref !== 'string')) {
@@ -81,7 +91,10 @@ router.post('/repositories/download', (req, res) => {
     res.status(202).json({ jobId: id })
 })
 
-router.delete('/repositories/:repository', async (req, res) => {
+router.delete('/repositories/:repository', async (
+    req: ReqWithParams<{ repository: string }>,
+    res: Response<{},{error:string}>
+) => {
     const repository = req.params.repository
     if (!repository?.trim()) {
         res.status(400).json({ error: 'A repository name is required.' })
@@ -104,7 +117,7 @@ router.get('/jobs/:id/events', (req, res) => {
     if (!streamJob(req.params.id, res)) res.status(404).json({ error: 'Job not found.' })
 })
 
-router.get('/projects', async (req, res) => {
+router.get('/projects', async (_, res: Response<string[] | { error: string }>) => {
     try {
         res.json(await getFolders(workDirectory))
     } catch (error) {

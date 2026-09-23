@@ -45,24 +45,33 @@ export function startJob(task: (report: JobReporter) => Promise<{ repository?: s
         for (const listener of record.listeners) listener(record.state)
     }
 
-    queueMicrotask(() => {
-        void task(report)
-            .then((result) => {
-                report({
-                    phase: 'complete',
-                    message: 'Complete',
-                    percent: 100,
-                    repository: result.repository,
-                })
+    queueMicrotask(async () => {
+
+        try {
+            const result = await task(report)
+            report({
+                phase: 'complete',
+                message: 'Complete',
+                percent: 100,
+                repository: result.repository,
             })
-            .catch((error: unknown) => {
-                console.error('Repository job failed:', error)
-                report({
-                    phase: 'error',
-                    message: error instanceof Error ? error.message : 'Unknown job error.',
-                })
+
+
+        } catch (error) {
+            console.error('Repository job failed:', error)
+            report({
+                phase: 'error',
+                message: error instanceof Error ? error.message : 'Unknown job error.',
             })
-            .finally(() => setTimeout(() => jobs.delete(id), 10 * 60_000))
+        }
+
+
+        finally {
+            setTimeout(() => jobs.delete(id), 10 * 60_000)
+        }
+
+
+
     })
 
     return id
